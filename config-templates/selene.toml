@@ -1,0 +1,7 @@
+# selene.toml — линтер
+std = "roblox"
+
+[rules]
+unused_variable = "warn"
+shadowing = "warn"
+global_usage = "deny"

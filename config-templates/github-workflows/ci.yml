@@ -1,0 +1,45 @@
+# Скопировать в .github/workflows/ci.yml
+# Пайплайн: lint -> build -> test (Open Cloud Luau Execution). Deploy (Mantle) включить на Фазе 1-2.
+name: CI
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [dev, main]
+
+jobs:
+  lint-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain (Rokit)
+        uses: CompeyDev/setup-rokit@v0.1.2
+      - name: Install dependencies
+        run: wally install
+      - name: Lint (Selene)
+        run: selene src
+      - name: Format check (StyLua)
+        run: stylua --check src
+      - name: Build (Rojo)
+        run: rojo build --output game.rbxlx
+      - name: Tests (TestEZ via Open Cloud Luau Execution)
+        env:
+          OPEN_CLOUD_API_KEY: ${{ secrets.OPEN_CLOUD_API_KEY }}
+        run: lune run scripts/run-tests
+        # scripts/run-tests.luau: грузит .rbxlx через Open Cloud Luau Execution,
+        # запускает TestEZ в реальном движке, падает при провале тестов.
+
+  # deploy:  # включить на Фазе 1-2
+  #   needs: lint-build-test
+  #   if: github.ref == 'refs/heads/main'
+  #   runs-on: windows-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: CompeyDev/setup-rokit@v0.1.2
+  #     - run: rojo build --output game.rbxlx
+  #     - run: mantle deploy
+  #       env:
+  #         ROBLOSECURITY: ${{ secrets.ROBLOSECURITY }}
+  #         MANTLE_OPEN_CLOUD_API_KEY: ${{ secrets.MANTLE_OPEN_CLOUD_API_KEY }}
+  #         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

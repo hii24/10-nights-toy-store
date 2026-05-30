@@ -1,0 +1,32 @@
+{
+  "$comment": "Шаблон. permissions = программируемая безопасность (методология §8). Подгони под себя. НЕ используй --dangerously-skip-permissions вне песочницы.",
+  "model": "opus",
+  "permissions": {
+    "allow": [
+      "Read", "Edit", "Write",
+      "Bash(rojo build:*)", "Bash(rojo serve:*)",
+      "Bash(selene:*)", "Bash(stylua:*)",
+      "Bash(wally install:*)", "Bash(rokit install:*)",
+      "Bash(git status:*)", "Bash(git log:*)", "Bash(git diff:*)",
+      "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(./harness/init.sh:*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(mantle deploy:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Read(./.env)",
+      "Read(./**/*secret*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Edit|Write", "hooks": [ { "type": "command", "command": "stylua $CLAUDE_FILE_PATHS 2>/dev/null || true" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "echo 'Напоминание: обнови harness/claude-progress.md и сделай git-коммит перед концом сессии.'" } ] }
+    ]
+  }
+}

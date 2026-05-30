@@ -1,0 +1,20 @@
+# --- Зависимости Wally (генерируются; коммитим wally.lock, не папки) ---
+/Packages/
+/ServerPackages/
+/DevPackages/
+
+# --- Build-артефакты Roblox / Rojo ---
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+
+# --- Шум ОС / редактора ---
+.DS_Store
+**/.DS_Store
+
+# --- Логи ---
+*.log
