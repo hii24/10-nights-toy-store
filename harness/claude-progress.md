@@ -152,3 +152,15 @@
 - **Следующее:** `P0-10` — TestEZ покрытие (RoundService переходы + GeneratorService) + «зелёные в CI через Open Cloud» (нужен Open Cloud key для CI-части; локальная часть — как тут).
 - **Известные проблемы:** `tests/` не линтятся Selene (TestEZ-DSL globals; CI делает только `selene src`); prod-build project без тестов — при шиппинге.
 - **Коммит:** см. `git log` (P0-09).
+
+---
+
+## [ПАМЯТКА / ОТЛОЖЕНО] Open Cloud CI (шаг «зелёные в CI через Open Cloud» для P0-10 и P0-09) — 2026-05-31
+Решено **отложить** реальный headless-прогон TestEZ в CI (Open Cloud Luau Execution). Подключить **при релизе/публикации**. Локальные TestEZ через Studio-мост (edit-режим) — рабочая альтернатива (так сделан P0-09; так же делаем локальную часть P0-10).
+**Что нужно, когда вернёмся (по шагам):**
+1. **Опубликовать игру** (Studio → File → Publish to Roblox, personal-use/private достаточно). Прежде — снять блок **Account status: good standing** на `create.roblox.com` → Publishing permissions → Account status → **Start** (был красный «!» для personal use; Identity/Age/2-step — только для 16+/all-ages, для personal не нужны).
+2. **Open Cloud API key:** `create.roblox.com/dashboard/credentials` → API Keys → право **Luau Execution**, привязать к experience. Ключ — СЕКРЕТ.
+3. **GitHub secret** `OPEN_CLOUD_API_KEY` (репо → Settings → Secrets and variables → Actions). + при необходимости universe/place ID как vars.
+4. **Раннер** `scripts/run-tests.luau` (lune + Open Cloud Luau Execution): прогнать TestEZ на опубликованном месте, exit≠0 при фейле.
+5. **CI:** тест-шаг в `.github/workflows/ci.yml` уже готов — при наличии секрета **и** `scripts/run-tests.luau` он перестанет скипаться и побежит реально (см. условие `if [ -z "$OPEN_CLOUD_API_KEY" ] || [ ! -f scripts/run-tests.luau ]`).
+**Контекст блока:** Open Cloud-путь упирается в аккаунт-настройку (Roblox account-standing + публикация), поэтому для graybox отложен как опциональная автоматизация.
