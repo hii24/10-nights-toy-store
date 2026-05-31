@@ -38,11 +38,13 @@ return function()
 	beforeEach(function()
 		GeneratorService._lastInsert = {}
 		GeneratorService._power = 0
-		-- Стаб генератора (KnitStart/_build не запускаются): Position для distance-чека + no-op SetAttribute.
+		-- Стабы зависимостей _tryInsert, добавленных после спеки (KnitInit/KnitStart не запускаются):
+		-- _generator (Position) — distance-чек P1-10; _analytics (LogFunnelStep) — funnel-хук P1-09.
 		GeneratorService._generator = {
 			Position = GeneratorConfig.position,
 			SetAttribute = function() end,
 		}
+		GeneratorService._analytics = { LogFunnelStep = function() end }
 	end)
 
 	describe("_tryInsert (anti-cheat)", function()
