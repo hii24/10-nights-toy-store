@@ -164,3 +164,16 @@
 4. **Раннер** `scripts/run-tests.luau` (lune + Open Cloud Luau Execution): прогнать TestEZ на опубликованном месте, exit≠0 при фейле.
 5. **CI:** тест-шаг в `.github/workflows/ci.yml` уже готов — при наличии секрета **и** `scripts/run-tests.luau` он перестанет скипаться и побежит реально (см. условие `if [ -z "$OPEN_CLOUD_API_KEY" ] || [ ! -f scripts/run-tests.luau ]`).
 **Контекст блока:** Open Cloud-путь упирается в аккаунт-настройку (Roblox account-standing + публикация), поэтому для graybox отложен как опциональная автоматизация.
+
+---
+
+## [P0-10 — ЧАСТИЧНО / passes:false] TestEZ-покрытие ядра (локально зелёно) — 2026-05-31
+- **Сделано (тест-контент):**
+  - Крошечный рефактор: `RoundService` — вынесен `_resolveOutcome()` (исход ночи: `Lost`/`Morning`), поведение не изменено.
+  - Спеки: RoundService переходы (`_resolveOutcome` Morning/Lost, `_setState`); GeneratorService power-модель (`_applyPower` порог `GeneratorPowered`; `_tryInsert`-**успех**: рост на `powerPerBattery` + кап на `maxPower`). Расширены `tests/RoundService.spec` + `tests/GeneratorService.spec`.
+  - Локально: StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓.
+  - **Прогон TestEZ через мост (в свежем place):** `passed=17, failed=0, skipped=0` (10 P0-09 + 7 P0-10). Шаги 1-2 P0-10 (спеки RoundService/GeneratorService) выполнены.
+- **`passes:false` (честно):** 3-й шаг «Зелёные в CI через Open Cloud» — **отложен** (см. памятку Open Cloud CI выше). Флипнем `P0-10` (+ ретроспективно `P0-09` в CI), когда поднимем Open Cloud.
+- **Грабли (важно для локальных прогонов):** Studio кэширует `require` — после правки модулей нужен **переоткрыть place** (или fresh playtest), иначе TestEZ гоняет старые версии. (Сегодня поймали: правки синкались, но прогон давал старые 10 → переоткрытие game.rbxlx дало 17.)
+- **Фаза 0:** **9/10** (геймплей + анти-чит + ядро-покрытие; остаётся только «зелёные в CI через Open Cloud» для `P0-10`/`P0-09`).
+- **Коммит:** см. `git log` (P0-10).

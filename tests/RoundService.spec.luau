@@ -25,4 +25,25 @@ return function()
 			expect(RoundService._caught).to.equal(true)
 		end)
 	end)
+
+	describe("_resolveOutcome (P0-10 transitions)", function()
+		it("returns Lost when caught", function()
+			RoundService._caught = true
+			expect(RoundService:_resolveOutcome()).to.equal("Lost")
+		end)
+
+		it("returns Morning when survived", function()
+			RoundService._caught = false
+			expect(RoundService:_resolveOutcome()).to.equal("Morning")
+		end)
+	end)
+
+	describe("_setState (P0-10)", function()
+		it("updates the server state", function()
+			RoundService:_setState("Night")
+			expect(RoundService._state).to.equal("Night")
+			RoundService:_setState("Morning")
+			expect(RoundService._state).to.equal("Morning")
+		end)
+	end)
 end

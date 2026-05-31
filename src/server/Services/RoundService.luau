@@ -45,6 +45,11 @@ function RoundService:_onCaught(_player: Player)
 	end
 end
 
+-- Исход ночи (чистая логика, тестируемо): пойман → Lost, выжил → Morning.
+function RoundService:_resolveOutcome(): string
+	return if self._caught then STATE_LOST else STATE_MORNING
+end
+
 function RoundService:_runRound()
 	-- Preparation: враг спит.
 	self._caught = false
@@ -70,7 +75,7 @@ function RoundService:_runRound()
 	-- Исход.
 	self._enemy:SetActive(false)
 	self:_setTime(0)
-	self:_setState(if self._caught then STATE_LOST else STATE_MORNING)
+	self:_setState(self:_resolveOutcome())
 end
 
 function RoundService:KnitInit()

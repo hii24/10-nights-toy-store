@@ -56,4 +56,34 @@ return function()
 			expect(GeneratorService._power).to.equal(0)
 		end)
 	end)
+
+	describe("_applyPower threshold (P0-10)", function()
+		it("sets GeneratorPowered when power >= threshold", function()
+			GeneratorService._power = GeneratorConfig.poweredThreshold
+			GeneratorService:_applyPower()
+			expect(game:GetService("Workspace"):GetAttribute("GeneratorPowered")).to.equal(true)
+		end)
+
+		it("clears GeneratorPowered below threshold", function()
+			GeneratorService._power = GeneratorConfig.poweredThreshold - 1
+			GeneratorService:_applyPower()
+			expect(game:GetService("Workspace"):GetAttribute("GeneratorPowered")).to.equal(false)
+		end)
+	end)
+
+	describe("_tryInsert success (P0-10)", function()
+		it("raises power by powerPerBattery on a valid insert", function()
+			GeneratorService._batteryService = stubBattery(5)
+			GeneratorService._power = 0
+			GeneratorService:_tryInsert(alivePlayer())
+			expect(GeneratorService._power).to.equal(GeneratorConfig.powerPerBattery)
+		end)
+
+		it("caps power at maxPower", function()
+			GeneratorService._batteryService = stubBattery(5)
+			GeneratorService._power = GeneratorConfig.maxPower - 1
+			GeneratorService:_tryInsert(alivePlayer())
+			expect(GeneratorService._power).to.equal(GeneratorConfig.maxPower)
+		end)
+	end)
 end
