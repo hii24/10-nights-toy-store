@@ -310,3 +310,22 @@
 - **🔸 На потом:** реальный тест на телефоне (нотч/Dynamic Island, узкий/широкий экран) до `main`; ReviveLabel-позиция при одновременных RoundUi+HUD; консолидация RoundUiController в HUD.
 - **Ветка:** `feat/p1-07-fusion-hud` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Фаза 1: 7/11.** **Следующее:** `P1-08` (ProfileStore: coins/XP персист между сессиями + fail-handling — ретрай/кик, НЕ дефолт).
+
+---
+
+## [P1-08 — passes:true] ProfileStore: персист coins/XP + fail-handling — 2026-05-31
+Первая **персистентность данных**. coins/XP сохраняются между сессиями (ProfileStore: сессионные локи + авто-сейв + backoff). Проверено на **РЕАЛЬНОМ** DataStore (плейс опубликован).
+- **Сделано:**
+  - `vendor/ProfileStore.luau` (НОВЫЙ — официальный `github.com/MadStudioRoblox/ProfileStore`, by loleris; единый ModuleScript, **вне `src` → вне линта**). `default.project.json`: маппинг `ServerScriptService.Server.Vendor → vendor`. `wally.toml`: коммент о вендоринге.
+  - `src/shared/Config/DataConfig` (НОВЫЙ — `storeName="PlayerData_v1"`, `profileTemplate={Coins=0,Xp=0,Level=1}`, `coinsPerNight=10`, `xpPerNight=5`, `coinsPerWin=30`, `xpPerLevel=100`; чистые данные).
+  - `src/server/Services/DataService` (НОВЫЙ, Knit): `KnitStart`→`ProfileStore.New`; `_onPlayerAdded` (StartSessionAsync с `Cancel` → `_shouldKick(nil)`→**Kick** → `Reconcile`+`AddUserId`+`OnSessionEnd`(лок украден→кик)+`_profiles[p]`+атрибуты); `_onPlayerRemoving`→`EndSession`; `BindToClose`→`EndSession` всем (синхронно); API `AddCoins/AddXp/GetCoins`; чистые `_shouldKick`/`_levelForXp`; бродкаст `Coins/Xp/Level` в Player-атрибуты. **Анти-гонка `_loading`-гард** (двойная загрузка PlayerAdded + early-joiners).
+  - `src/server/Services/RoundService` (ИЗМЕНЁН): `KnitInit`+`_data=GetService("DataService")`; `_awardSurvivors(coins,xp)` — на Morning (`+10/+5` выжившим) и EndMatch (`+30` coins бонус). Серверно.
+  - `tests/DataService.spec` (НОВЫЙ — `_shouldKick` (nil→kick; таблица→нет), `_levelForXp` (0/99/100/250→1/1/2/3), **persist round-trip на `ProfileStore.Mock`**: сессия→`Coins=42`→`EndSession`→новая сессия(`Steal`)→`Coins==42`).
+- **Данные (docs/03):** сбой загрузки (`StartSessionAsync→nil`) → **кик, НЕ дефолт** (дефолт перезатёр бы сейв); сейв на `PlayerRemoving` + `BindToClose` (синхронно); pcall+backoff+сессионные локи + ≤1 сейв/6с — внутри ProfileStore. Монетизация/`ProcessReceipt` — отдельно (позже), не тут.
+- **End-to-end на РЕАЛЬНОМ DataStore** (плейс **опубликован** «10 Nights Toy Store dev», `PlaceId=84110572941861`; Studio API access ON; Rojo sync MED-фикса подтверждён `_loading×5` в движке): профиль загрузился (`Coins=0/Xp=0/Level=1` = template, **игрок не кикнут**) → пережил Night 1 (safe-spot Y=500 anchored) → Morning начислил **`Coins=10, Xp=5`** → **стоп** (`EndSession`→save) → **старт** → **`Coins=10, Xp=5` пережили релог** (реальная запись/чтение DataStore, не mock). Консоль без ошибок DataStore/ProfileStore.
+- **data-engineer: PASS.** Закрыт **MED** (двойная загрузка профиля: `PlayerAdded` + early-joiners-loop на одного игрока) → `_loading`-гард (`if _profiles[p] or _loading[p] then return`). Fail-handling и идемпотентность сейва — ок.
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` (vendor включён) ✓. **TestEZ: passed=45 failed=0** (8 spec-файлов; +`DataService.spec`: `_shouldKick`, `_levelForXp`, persist round-trip mock).
+- **🔸 На потом:** персистим только `Coins/Xp/Level` (graybox); toy tickets/косметика/badges/монетизация — позже; HUD-показ coins (биндинг к атрибутам) — позже; реальный **кросс-сервер** relog-стресс — нужен лайв-сервер (Studio-стоп/старт = один сервер, но реальный DataStore-раунд-трип доказан).
+- **Публикация плейса разблокировала отложенное:** `P0-10` (Open Cloud CI — TestEZ на пуше) и `P1-11` (Mantle deploy).
+- **Ветка:** `feat/p1-08-profilestore` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Фаза 1: 8/11.** **Следующее:** `P1-09` (воронка аналитики, серверно: `player_joined … second_night_started`).
