@@ -1,6 +1,6 @@
 --!strict
 -- EnemyConfig — данные врагов (graybox). Только значения, без логики.
--- Mr. Huggy Bear (Фаза 0) + Wind-Up Soldier (Фаза 1, P1-02).
+-- Mr. Huggy Bear (Фаза 0) + Wind-Up Soldier (P1-02) + Doll Blinker (P1-03).
 
 local EnemyConfig = {
 	-- === Mr. Huggy Bear (P0-07/08): waypoint-петля внутри зала (пол y=0; стены ±24) ===
@@ -32,6 +32,16 @@ local EnemyConfig = {
 	soldierPushUp = 14, -- доп. вертикальный «подброс» импульса
 	soldierPushCooldown = 1.5, -- сек между толчками одного игрока (rate-limit)
 	soldierNoiseInterval = 0.8, -- сек между шум-пульсами (плейсхолдер аудио)
+
+	-- === Doll Blinker (P1-03): крадётся в «слепые» тики, замирает под взглядом; безвредна ===
+	dollFirstNight = 3, -- появляется с 3-й ночи (раньше — припаркована/неактивна)
+	dollStart = Vector3.new(18, 0, -18), -- стартовый угол зала
+	dollSize = Vector3.new(2, 3.5, 2), -- «кукольный» силуэт
+	dollColor = Color3.fromRGB(225, 215, 205), -- бледный «фарфор», отличимый от медведя/солдата
+	dollMaterial = Enum.Material.SmoothPlastic,
+	dollSpeed = 16, -- быстро крадётся в слепой тик
+	dollViewDotThreshold = 0.5, -- наблюдаема, если look·dir(player→doll) >= 0.5 (конус ~120°)
+	dollReachEpsilon = 1.5, -- стоп в этом радиусе от игрока (безвредно, без джиттера)
 }
 
 return EnemyConfig
