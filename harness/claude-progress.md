@@ -53,3 +53,20 @@
   - Graybox строится процедурно при старте плейтеста (в edit-режиме его нет) — ок для Фазы 0; настоящая авторская карта/кит — позже.
   - `get_console_output` по MCP иногда отдаёт неполный/устаревший срез лога — визуальную проверку дублирую скриншотом / `execute_luau`.
 - **Коммит:** см. `git log` (P0-03).
+
+---
+
+## [P0-04] Подбор батарейки (Knit BatteryService) — 2026-05-31
+- **Сделано:**
+  - **Введён Knit:** `src/server/Bootstrap.server.luau` (`Knit.AddServices(Server.Services)` + `Knit.Start`) + `src/server/Services/BatteryService.luau` (первый Knit-сервис) + `src/shared/Config/BatteryConfig.luau` (data-driven). API сверен с Knit 1.7.0.
+  - Подбор через **ProximityPrompt** (санкц. `docs/02` стр.18): сервер на `Triggered` валидирует ДО мутации — whitelist (промпт зарегистрирован/не взят), state (игрок жив), **rate-limit** (0.2с/игрок). Дистанция — движком (`MaxActivationDistance`). Провал → `warn` + тихий игнор (без кика).
+  - **Сессионный инвентарь серверно:** `self._inventory[player]` + зеркало в `player:SetAttribute("Batteries", n)` (реплицируется в клиент для HUD/проверки).
+  - Локально: StyLua + **Selene 0/0/0** + `rojo build` ✓. Синк через Rojo (фикс: адрес `127.0.0.1` вместо `localhost` — macOS резолвил в IPv6 `::1`, Rojo слушал IPv4 → ConnectionClosed).
+  - **End-to-end плейтест (MCP):** 5 батареек с промптами заспавнены; подбор (`InputHoldBegin`) → `Batteries` 0→1, батарейка уничтожена, **server-authoritative**; повтор одного промпта → `delta=1` (отвергнут); финал `Batteries=2`, осталось 3.
+  - `P0-04` → `passes:true`.
+- **Следующее:** `P0-05` — вставка батарейки в генератор повышает питание (`GeneratorService`; первый межсервисный вызов Knit — генератор тратит батарейки игрока).
+- **Известные проблемы:**
+  - `StreamingEnabled` + клиентский контекст `execute_luau`: части мерцают в стриме — для проверки серверного состояния опираюсь на реплицируемый атрибут (не зависит от стрима) + retry на поиск части.
+  - `fireproximityprompt` недоступен в sandbox `execute_luau` (контекст клиента) — триггерю через `InputHoldBegin/End` + телепорт в радиус.
+  - Адверсариальные спеки (мусор → отказ) — в `P0-09` (TestEZ).
+- **Коммит:** см. `git log` (P0-04).
