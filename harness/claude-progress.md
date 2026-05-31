@@ -371,3 +371,23 @@
 - **Ветка:** `feat/p1-09-analytics` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Фаза 1: 9/11.** **Следующее:** `P1-10` (security-ревью всей Фазы 1) или разблокированные `P0-10`
   (TestEZ в CI через Open Cloud) / `P1-11` (Mantle deploy).
+
+---
+
+## [P1-10 — passes:true] Security-ревью всей Фазы 1 + фиксы H-1/H-2/M-1 — 2026-05-31
+Сертификация безопасности Фазы 1 перед `main` (DoD: нет crit/high). Аудит всей поверхности против docs/02/03.
+- **Подход:** 3 параллельных `security-reviewer`-сабагента по доменам:
+  1. Remotes + экономика + апгрейды → **PASS** (1 LOW: `_mult` без потолка/reset — latent, не эксплойтабелен при nightCount=3).
+  2. ProximityPrompt-интеракции → **NEEDS WORK** (нашёл H-1/H-2/M-1).
+  3. Ядро + данные + аналитика → **PASS** (2 LOW: character-CFrame spoof Doll/Bear — присущее Roblox, кукла безвредна, поимка авторитетна).
+- **Находки (домен 2) и фиксы:**
+  - **H-1 (HIGH):** не было серверной перепроверки дистанции ни на одной из 4 интеракций (Battery/Generator/Door/Revive) — полагались только на клиент-энфорсимый `MaxActivationDistance` → эксплойтер дёргает `Triggered`/`HoldBegan` с любой дистанции (подбор/вставка/ремонт/спасение через всю карту). **Фикс:** новый `src/shared/Util/Interaction.luau` (чистый `within(a,b,max)` + `playerWithin`, slack ×1.5, нет HRP→false) + серверная проверка ДО мутации во всех 4 хендлерах.
+  - **H-2 (HIGH):** Door `_onHoldBegan` — нет rate-limit + перезатир слота → сброс/перехват чужого прогресса ремонта. **Фикс:** per-player rate-limit (`_lastHold`, 0.25с) + анти-hijack (не перебивать активный слот другого игрока).
+  - **M-1 (MED):** Revive `_onHoldBegan` — единый слот, нет rate-limit → denial спасения спамом. **Фикс:** rate-limit + анти-hijack (`_holdRescuer ~= player → return`).
+  - `tests/Interaction.spec` (НОВЫЙ): чистый `within` (в пределах/граница/далеко/3D).
+- **Ре-ревью дельты (4-й `security-reviewer`): PASS** — H-1/H-2/M-1 все **CLOSED** (по строкам), регрессий легит-коопа нет (две разные двери параллельно ✓; легит-спасатель после релиза ✓; тот же игрок повторно ✓; вплотную не отвергает — slack 12/13.5/13.5/15 vs конфиг 8/9/9/10), новых crit/high нет.
+- **🔸 LOW-хвосты (приняты, НЕ блокируют DoD):** (1) `_mult` без абсолютного клампа — latent, ограничен nightCount=3 (макс ×1.82 speed/×2.56 jump), reset на рестарте сервера; ужесточить при лупе матчей/росте nightCount. (2) character-CFrame spoof (Doll observation / Bear catch / Interaction HRP-slack) — присущее клиентскому network ownership Roblox, вне threat model graybox (смещение ≤ slack, не «через карту»; кукла безвредна, поимка/«пойман» авторитетны). Бэклог: server-side movement sanitizer, если появятся жалобы.
+- **Верификация:** **TestEZ 55/0/0** (10 спек, +4 Interaction.spec; фиксы не сломали прежние). Selene 0/0/0, StyLua ✓, `rojo build` ✓. Смоук в Studio: все 4 сервиса грузятся с `require(Interaction)` (Generator/Doors/ToyBox построены, 5 батареек спавнятся), раунд идёт — рантайм не сломан.
+- **ВЕРДИКТ: нет открытых crit/high** по всей Фазе 1 → DoD выполнен.
+- **Ветка:** `feat/p1-10-security-review` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Фаза 1: 10/11.** **Следующее:** `P1-11` (Mantle deploy на мёрдж в main — нужен Open Cloud key/секрет) или `P0-10` (TestEZ в CI через Open Cloud — тоже нужен ключ). Оба требуют твоего действия с Open Cloud.

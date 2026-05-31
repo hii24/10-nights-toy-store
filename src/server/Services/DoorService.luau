@@ -15,12 +15,14 @@ local Knit = require(Packages:WaitForChild("Knit"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local DoorConfig = require(Config:WaitForChild("DoorConfig"))
+local Interaction = require(Shared:WaitForChild("Util"):WaitForChild("Interaction"))
 
 local DOORS_FOLDER = "Doors"
 local ATTR_BROKEN = "Broken"
 local ATTR_PROGRESS = "RepairProgress"
 local ATTR_ROUND_STATE = "RoundState"
 local STATE_NIGHT = "Night"
+local HOLD_COOLDOWN = 0.25 -- rate-limit на старт удержания (анти-спам перехвата слота), сек
 
 local DoorService = Knit.CreateService({
 	Name = "DoorService",
@@ -29,6 +31,7 @@ local DoorService = Knit.CreateService({
 -- Серверное состояние (Service имеет [any]: any — поля чисты под --!strict).
 DoorService._doors = {} -- список Part-дверей
 DoorService._holds = {} -- [door: BasePart] = { player: Player, startClock: number }
+DoorService._lastHold = {} -- [Player]: number — rate-limit на _onHoldBegan (анти-спам)
 
 -- Чистый предикат «починка засчитана» (тестируемо): удержание >= required*tolerance.
 function DoorService._isHoldValid(elapsed: number, required: number, tolerance: number): boolean
@@ -62,7 +65,26 @@ function DoorService:_onHoldBegan(door: BasePart, player: Player)
 	if door:GetAttribute(ATTR_BROKEN) ~= true then
 		return
 	end
-	self._holds[door] = { player = player, startClock = os.clock() }
+	-- bounds: сервер перепроверяет дистанцию (docs/02; MaxActivationDistance — клиентский гейт)
+	if
+		not Interaction.playerWithin(player, door.Position, DoorConfig.prompt.maxActivationDistance)
+	then
+		warn(`[DoorService] reject: {player.Name} too far from door`)
+		return
+	end
+	-- rate-limit на игрока: анти-спам сброса прогресса/перехвата слота
+	local now = os.clock()
+	local last = self._lastHold[player]
+	if last and now - last < HOLD_COOLDOWN then
+		return
+	end
+	-- анти-hijack: не перебивать активное удержание ДРУГОГО игрока (спам не сбросит чужой прогресс)
+	local existing = self._holds[door]
+	if existing and existing.player ~= player then
+		return
+	end
+	self._lastHold[player] = now
+	self._holds[door] = { player = player, startClock = now }
 end
 
 function DoorService:_onHoldEnded(door: BasePart, player: Player)
@@ -152,6 +174,7 @@ function DoorService:KnitStart()
 	end)
 
 	Players.PlayerRemoving:Connect(function(player: Player)
+		self._lastHold[player] = nil
 		for door, hold in self._holds do
 			if hold.player == player then
 				self._holds[door] = nil
