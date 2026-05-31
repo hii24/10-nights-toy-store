@@ -275,3 +275,22 @@
 - **Скоуп-хвосты на потом:** LOW-1 distance-recheck (вместе с DoorService), исключение бокснутых из таргетинга врагов, наказание за повторную поимку, HUD-коробки (P1-07).
 - **Ветка:** `feat/p1-05-revive` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Следующее:** `P1-06` (сессионные апгрейды после ночи — выбор карточки; Upgrade-фаза из P1-01 = плейсхолдер).
+
+---
+
+## [P1-06 — passes:true] Сессионные апгрейды (выбор карты в Upgrade-фазе) — 2026-05-31
+Сделал Upgrade-фазу функциональной. **Первый валидированный client→server RemoteEvent** в проекте — заложена Net-инфра.
+- **Сделано:**
+  - `src/shared/Net/RemoteSchema` (НОВЫЙ — реестр `{SelectUpgrade}`) + `Net.luau` (НОВЫЙ — сервер создаёт RemoteEvent под `ReplicatedStorage.Remotes`, клиент ждёт).
+  - `UpgradeConfig` (НОВЫЙ — 3 карты: swift WalkSpeed×1.35, leaper JumpPower×1.6, steady ×1.15/×1.15; база 16/50; чистые данные).
+  - `UpgradeService` (НОВЫЙ — `_onSelect` middleware ДО мутации: type-assert → whitelist (`_isValidUpgradeId`) → rate-limit → state-gate (только Upgrade) → one-per-phase; apply множителей на Humanoid; re-apply на CharacterAdded; per-player, сессионно). Авто-регистрация.
+  - `UpgradeUiController.client` (НОВЫЙ — мини-UI: ScreenGui c 3 TextButton в Upgrade-фазе, клик → `SelectUpgrade:FireServer(id)`; НЕ Fusion — это P1-07).
+  - `RoundConfig.upgradeDuration` 5→8 (время на выбор). `tests/UpgradeService.spec` (НОВЫЙ — `_isValidUpgradeId`: type+whitelist, отвержение мусора).
+- **Безопасность (docs/02, /add-validated-remote):** клиент шлёт только намерение (id); множители — серверные (из конфига); провал валидации → warn + тихий игнор. RemoteEvent создаёт только сервер.
+- **End-to-end в Studio (мост КЛИЕНТСКИЙ → `FireServer` = действие кнопки; врем. upgradeDuration=30 для поимки окна, потом 8):** UI показан в Upgrade ✓; `FireServer("swift")` → `WalkSpeed 16→21.60` (16×1.35) ✓; отвергнуты: тип `123`, whitelist `"hack"`, one-per-phase `"leaper"` после swift → WalkSpeed=21.60 без изменений ✓; swift не трогает JumpPower (пер-стат) ✓.
+- **Security-review: PASS** (нет CRIT/HIGH/MED) — middleware полная, до мутации; накопление ограничено (макс 2 карты/матч → WalkSpeed≤29.2, JumpPower≤128); Net серверо-создаётся; нет `InvokeClient`. 3 LOW (мёртвая ветка `getCard`-lookup после `_isValidUpgradeId`; порядок rate-limit vs state-gate; JumpPower-модель — обработано форсом `UseJumpPower=true`) — косметика, отложены.
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓. **TestEZ: passed=39 failed=0** (35 + 4). `upgradeDuration` возвращён на 8.
+- **🔸 Тонкость:** Upgrade-фаза короткая (8с) → ловить окно через мост сложно (зазор между вызовами > окна); тестил на врем. 30с, вернул 8. Phase-gate (выбор вне Upgrade) явно не прогнан, но в валидированной цепочке + покрыт security-review.
+- **Net-инфра заложена** — следующие client→server remote'ы добавлять через `RemoteSchema` + handler с middleware (`/add-validated-remote`).
+- **Ветка:** `feat/p1-06-session-upgrades` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Следующее:** `P1-07` (HUD на Fusion: батарея-бар, счётчик ночи, прогресс ремонта, revive-промпт; мини-UI апгрейда из P1-06 можно поднять до Fusion).
