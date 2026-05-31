@@ -1,7 +1,7 @@
 --!strict
 -- BatteryService — спавн батареек + серверный подбор через ProximityPrompt.
 -- Безопасность (docs/02): валидация ДО мутации; при провале — warn + тихий игнор (без кика).
--- Дистанцию гейтит движок (ProximityPrompt.MaxActivationDistance) ДО Triggered.
+-- Дистанция: движок гейтит на КЛИЕНТЕ (не доверяем) → сервер перепроверяет (Interaction, docs/02).
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -13,6 +13,7 @@ local Knit = require(Packages:WaitForChild("Knit"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local BatteryConfig = require(Config:WaitForChild("BatteryConfig"))
+local Interaction = require(Shared:WaitForChild("Util"):WaitForChild("Interaction"))
 
 local PICKUPS_FOLDER = "Pickups"
 local ATTR_BATTERIES = "Batteries"
@@ -64,7 +65,19 @@ function BatteryService:_tryPickup(prompt: ProximityPrompt, player: Player)
 		return
 	end
 
-	-- 3) rate-limit на игрока
+	-- 3) bounds: сервер перепроверяет дистанцию (docs/02; MaxActivationDistance — клиентский гейт)
+	if
+		not Interaction.playerWithin(
+			player,
+			battery.Position,
+			BatteryConfig.prompt.maxActivationDistance
+		)
+	then
+		warn(`[BatteryService] reject: {player.Name} too far from battery`)
+		return
+	end
+
+	-- 4) rate-limit на игрока
 	local now = os.clock()
 	local last = self._lastPickup[player]
 	if last and now - last < PICKUP_COOLDOWN then

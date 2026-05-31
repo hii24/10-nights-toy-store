@@ -21,7 +21,7 @@
     { "id": "P1-07", "phase": 1, "priority": 17, "category": "ui", "description": "HUD на Fusion: батарея-бар, счётчик ночи, прогресс ремонта, revive-промпт", "steps": ["HUD реагирует на серверное состояние", "Читаемо на телефоне"], "passes": true },
     { "id": "P1-08", "phase": 1, "priority": 18, "category": "data", "description": "ProfileStore: coins/XP сохраняются между сессиями с правильным fail-handling", "steps": ["Заработать coins/XP", "Релог -> данные на месте", "При сбое загрузки — ретрай/кик, НЕ дефолт"], "passes": true },
     { "id": "P1-09", "phase": 1, "priority": 19, "category": "analytics", "description": "Воронка событий летит (player_joined ... second_night_started)", "steps": ["Пройти первый вход", "События в AnalyticsService (серверно)"], "passes": true },
-    { "id": "P1-10", "phase": 1, "priority": 20, "category": "security", "description": "Ревью безопасности всех систем Фазы 1 пройдено", "steps": ["/review", "security-reviewer: нет crit/high находок"], "passes": false },
+    { "id": "P1-10", "phase": 1, "priority": 20, "category": "security", "description": "Ревью безопасности всех систем Фазы 1 пройдено", "steps": ["/review", "security-reviewer: нет crit/high находок"], "passes": true },
     { "id": "P1-11", "phase": 1, "priority": 21, "category": "ci", "description": "Mantle deploy на мёрдж в main (только при зелёных тестах)", "steps": ["Настроить секреты Open Cloud/Mantle", "Мёрдж в main -> авто-деплой"], "passes": false }
   ]
 }

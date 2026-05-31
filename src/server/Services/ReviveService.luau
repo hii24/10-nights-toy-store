@@ -14,10 +14,12 @@ local Knit = require(Packages:WaitForChild("Knit"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local ReviveConfig = require(Config:WaitForChild("ReviveConfig"))
+local Interaction = require(Shared:WaitForChild("Util"):WaitForChild("Interaction"))
 
 local TOYBOX_NAME = "ToyBox"
 local ATTR_INTOYBOX = "InToyBox" -- на Player
 local ATTR_BOXED_COUNT = "BoxedCount" -- на Workspace (HUD/проверка)
+local HOLD_COOLDOWN = 0.25 -- rate-limit на старт удержания (анти-спам сброса слота открытия), сек
 
 local ReviveService = Knit.CreateService({
 	Name = "ReviveService",
@@ -27,6 +29,7 @@ local ReviveService = Knit.CreateService({
 ReviveService._boxed = {} -- [Player] = true
 ReviveService._holdStart = nil -- os.clock() начала открытия коробки (или nil)
 ReviveService._holdRescuer = nil -- Player, который держит (или nil)
+ReviveService._lastHold = {} -- [Player]: number — rate-limit на _onHoldBegan (анти-спам)
 -- _toyBox / _prompt задаются в _buildToyBox().
 
 -- Чистый предикат wipe (тестируемо): команда уничтожена, если все живые игроки в коробках.
@@ -122,7 +125,31 @@ function ReviveService:_onHoldBegan(player: Player)
 	if self:_boxedCount() == 0 then
 		return -- некого спасать
 	end
-	self._holdStart = os.clock()
+	-- bounds: сервер перепроверяет дистанцию до коробки (docs/02; MaxActivationDistance — клиентский гейт)
+	local box = self._toyBox
+	if
+		not box
+		or not Interaction.playerWithin(
+			player,
+			box.Position,
+			ReviveConfig.prompt.maxActivationDistance
+		)
+	then
+		warn(`[ReviveService] reject: {player.Name} too far from toy box`)
+		return
+	end
+	-- rate-limit на игрока: анти-спам сброса слота открытия
+	local now = os.clock()
+	local last = self._lastHold[player]
+	if last and now - last < HOLD_COOLDOWN then
+		return
+	end
+	-- анти-hijack: не перебивать активное удержание другого валидного спасателя
+	if self._holdRescuer and self._holdRescuer ~= player then
+		return
+	end
+	self._lastHold[player] = now
+	self._holdStart = now
 	self._holdRescuer = player
 end
 
@@ -192,6 +219,7 @@ function ReviveService:KnitStart()
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		self._boxed[player] = nil
+		self._lastHold[player] = nil
 		if self._holdRescuer == player then
 			self._holdStart = nil
 			self._holdRescuer = nil

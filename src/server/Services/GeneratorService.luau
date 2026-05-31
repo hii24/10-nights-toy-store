@@ -13,6 +13,7 @@ local Knit = require(Packages:WaitForChild("Knit"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local GeneratorConfig = require(Config:WaitForChild("GeneratorConfig"))
+local Interaction = require(Shared:WaitForChild("Util"):WaitForChild("Interaction"))
 
 local GENERATOR_NAME = "Generator"
 local ATTR_POWER = "Power"
@@ -60,6 +61,20 @@ function GeneratorService:_tryInsert(player: Player)
 	local humanoid = (char and char:FindFirstChildOfClass("Humanoid")) :: Humanoid?
 	if not humanoid or humanoid.Health <= 0 then
 		warn(`[GeneratorService] reject: {player.Name} not alive`)
+		return
+	end
+
+	-- bounds: сервер перепроверяет дистанцию (docs/02; MaxActivationDistance — клиентский гейт)
+	local gen = self._generator
+	if
+		not gen
+		or not Interaction.playerWithin(
+			player,
+			gen.Position,
+			GeneratorConfig.prompt.maxActivationDistance
+		)
+	then
+		warn(`[GeneratorService] reject: {player.Name} too far from generator`)
 		return
 	end
 
