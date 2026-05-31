@@ -97,3 +97,17 @@
 - **Следующее:** `P0-07` — Mr. Bear: waypoint-патруль (серверно; скорость зависит от `GeneratorPowered`). `EnemyService` (3-й Knit-сервис).
 - **Известные проблемы:** прежние (`StreamingEnabled`, `get_console_output` срез, adversarial TestEZ — `P0-09`). Баланс drain/порога — грубый, тюнинг с ночным таймером `P0-08`.
 - **Коммит:** см. `git log` (P0-06).
+
+---
+
+## [P0-07] Mr. Huggy Bear: waypoint-патруль, скорость от питания — 2026-05-31
+- **Сделано:**
+  - 3-й Knit-сервис `src/server/Services/EnemyService.luau` + `src/shared/Config/EnemyConfig.luau` (4 waypoint-ноды-петля, размер/цвет, `speedDark=16` / `speedPowered=9`).
+  - **Кинематический медведь** (Anchored Part): сервер двигает по `RunService.Heartbeat` между нодами (НЕ PathfindingService — `docs/06`); поворот лицом, y фикс; wrap по петле. Скорость каждый шаг от `Workspace.GeneratorPowered`. Публичный `SetActive` — хук для гейтинга в `P0-08`.
+  - Зеркала `Workspace.BearSpeed`/`BearWaypoint` (надёжно под `StreamingEnabled`).
+  - Локально: StyLua + **Selene 0/0/0** + `rojo build` ✓. Синк Rojo (`127.0.0.1`).
+  - **End-to-end плейтест (MCP):** медведь есть; unpowered → `BearSpeed=16`, waypoint `2→3`, прошёл **34.7 студов за 3с** (патруль); запитал (3 батарейки) → `powered=true → BearSpeed=9` (медленнее на свету). Server-authoritative.
+  - `P0-07` → `passes:true`.
+- **Следующее:** `P0-08` — `RoundService`: одна ночь, таймер выживания 3 мин, экран победы/поражения (ловля медведем → поражение; гейтинг врага через `EnemyService:SetActive`).
+- **Известные проблемы:** прежние; баланс скоростей/нод — грубый. Ловля игрока — в `P0-08`.
+- **Коммит:** см. `git log` (P0-07).
