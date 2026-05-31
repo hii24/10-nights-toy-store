@@ -15,6 +15,7 @@ local EnemyConfig = {
 	speedPowered = 9, -- медленнее на свету
 	speedDark = 16, -- быстрее в темноте
 	reachEpsilon = 2, -- дистанция «нода достигнута»
+	catchRadius = 5, -- ловит игрока в этом радиусе (P0-08)
 }
 
 return EnemyConfig

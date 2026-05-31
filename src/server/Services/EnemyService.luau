@@ -3,6 +3,7 @@
 -- Логика серверная (docs/06: при StreamingEnabled держим врага на сервере). НЕ PathfindingService — ноды.
 -- Скорость зависит от Workspace.GeneratorPowered (быстрее в темноте). Зеркалит BearSpeed/BearWaypoint.
 
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,6 +34,11 @@ function EnemyService:SetActive(active: boolean)
 	self._active = active
 end
 
+-- Колбэк ловли (ставит RoundService): зовётся при игроке в catchRadius.
+function EnemyService:SetCaughtCallback(callback)
+	self._caughtCallback = callback
+end
+
 function EnemyService:_setWaypoint(index: number)
 	self._wpIndex = index
 	Workspace:SetAttribute(ATTR_BEAR_WAYPOINT, index)
@@ -51,6 +57,18 @@ function EnemyService:_step(dt: number)
 	local bear = self._bear
 	if not bear or not bear.Parent then
 		return
+	end
+
+	-- Ловля: игрок в catchRadius → колбэк (RoundService → Lost).
+	local caughtCb = self._caughtCallback
+	if caughtCb then
+		for _, plr in Players:GetPlayers() do
+			local hrp = plr.Character
+				and plr.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if hrp and (hrp.Position - bear.Position).Magnitude <= EnemyConfig.catchRadius then
+				caughtCb(plr)
+			end
+		end
 	end
 
 	local powered = Workspace:GetAttribute(ATTR_POWERED) == true
@@ -93,7 +111,6 @@ function EnemyService:KnitStart()
 	self:_build()
 	self:_setWaypoint(1)
 	Workspace:SetAttribute(ATTR_BEAR_SPEED, EnemyConfig.speedDark)
-	self._active = true
 
 	RunService.Heartbeat:Connect(function(dt: number)
 		self:_step(dt)

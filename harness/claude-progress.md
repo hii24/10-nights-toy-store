@@ -111,3 +111,20 @@
 - **Следующее:** `P0-08` — `RoundService`: одна ночь, таймер выживания 3 мин, экран победы/поражения (ловля медведем → поражение; гейтинг врага через `EnemyService:SetActive`).
 - **Известные проблемы:** прежние; баланс скоростей/нод — грубый. Ловля игрока — в `P0-08`.
 - **Коммит:** см. `git log` (P0-07).
+
+---
+
+## [P0-08] RoundService: одна ночь, таймер, победа/поражение (ЯДРО) — 2026-05-31
+- **Сделано:**
+  - 4-й Knit-сервис `src/server/Services/RoundService.luau` (ядро) + `src/shared/Config/RoundConfig.luau` (`prepDuration=5`, `nightDuration=30` graybox, `tick=0.2`).
+  - **Стейт-машина:** `Preparation`(враг спит) → `Night`(враг активен, таймер выживания) → `Morning`(выжил) | `Lost`(пойман). Бродкаст `Workspace.RoundState`/`RoundTimeLeft`.
+  - **Гейтинг врага:** `EnemyService` теперь дефолт inactive; `RoundService` включает на `Night`, выключает на исходе. (P0-07-патруль теперь идёт во время `Night` — поведение сохранено, просто под управлением раунда.)
+  - **Ловля (межсервисно):** `EnemyService` детектит игрока в `catchRadius=5` → колбэк `SetCaughtCallback` → `RoundService` → `Lost`.
+  - **Мин. экран:** `src/client/RoundUiController.client.luau` (ScreenGui) — "SURVIVE - Ns" / "YOU SURVIVED" / "CAUGHT!".
+  - Локально: StyLua + **Selene 0/0/0** + `rojo build` ✓. Синк Rojo (`127.0.0.1`).
+  - **End-to-end (2 плейтеста, MCP):** **A победа** — Preparation→Night→таймер 30→0→`Morning`, UI "YOU SURVIVED", враг выключен. **B поражение** — в Night телепорт на медведя → `Lost`, UI "CAUGHT!".
+  - `P0-08` → `passes:true`.
+- **🎯 ВСЯ ГЕЙМПЛЕЙНАЯ ПЕТЛЯ ФАЗЫ 0 СОБРАНА:** спавн → батарейки → генератор → свет → медведь (быстрее в темноте) → пережить ночь = победа / пойман = поражение. Остаются P0-09 (security-тесты) и P0-10 (TestEZ) — харднинг/тесты.
+- **Следующее:** `P0-09` — все RemoteEvents/прокси Фазы 0 проходят middleware-валидацию (TestEZ: мусор → отказ). `P0-10` — TestEZ покрытие RoundService/GeneratorService.
+- **Известные проблемы:** прежние; `nightDuration=30` graybox (цель 3 мин — одна строка). Терминальный конец раунда (рестарт-петля — `P1-01`).
+- **Коммит:** см. `git log` (P0-08).
