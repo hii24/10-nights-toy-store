@@ -391,3 +391,24 @@
 - **ВЕРДИКТ: нет открытых crit/high** по всей Фазе 1 → DoD выполнен.
 - **Ветка:** `feat/p1-10-security-review` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Фаза 1: 10/11.** **Следующее:** `P1-11` (Mantle deploy на мёрдж в main — нужен Open Cloud key/секрет) или `P0-10` (TestEZ в CI через Open Cloud — тоже нужен ключ). Оба требуют твоего действия с Open Cloud.
+
+---
+
+## [P0-10 — passes:true] TestEZ в CI через Open Cloud Luau Execution — 2026-06-01
+Реальный прогон TestEZ в **настоящем движке Roblox** на каждом пуше (раньше CI = только lint+build, тесты — заглушка).
+Разблокировано публикацией плейса + Open Cloud-ключом (юзер создал key с scopes `luau-execution-sessions:read+write` + `universe-places:write`, добавил GitHub-секретом `OPEN_CLOUD_API_KEY`).
+- **Сделано:**
+  - `scripts/run-tests.luau` (НОВЫЙ, **Lune** — НЕ Roblox; вне `selene src`): self-contained раннер.
+    Publish свежего `game.rbxl` (`POST /universes/v1/{u}/places/{p}/versions?versionType=Published`, octet-stream) →
+    Execute (`POST /cloud/v2/.../versions/{v}/luau-execution-session-tasks` с встроенным TestEZ-скриптом) →
+    Poll (`GET /cloud/v2/{path}` до `COMPLETE`) → парс `output.results` → exit≠0 при `failure>0`. Подробное логирование (publish-версия, task-path, state, engine-logs) для дебага по CI.
+    `universeId=10253418020 placeId=84110572941861`.
+  - `.github/workflows/ci.yml` (правка): тест-шаг собирает `game.rbxl` + гоняет раннер (не заглушка); skip только без секрета (форки/внешние PR не падают).
+  - `tests/GeneratorService.spec.luau` (правка): стабы зависимостей `_tryInsert`, добавленных ПОСЛЕ спеки — `_generator` (Position для distance-чека P1-10) + `_analytics` (LogFunnelStep P1-09) + HRP мока у генератора.
+- **🔑 Главная находка (ради чего P0-10):** реальный движок поймал **2 бага спеки, которые прятал ненадёжный Rojo-синк Studio** (давал ложный 55/0/0 на устаревшем коде): GeneratorService `_tryInsert success` падал, т.к. (а) P1-10 distance-чек требует `_generator`+близости (в юните nil → reject), (б) P1-09 funnel-хук `_analytics:LogFunnelStep` → nil-error. Studio гонял старый GeneratorService, движок — собранный с диска. **Вывод: Studio-TestEZ ненадёжен из-за синка; Open Cloud-прогон = ground truth.**
+- **Спеки шагов фичи:** `GeneratorService.spec` (threshold/insert-success/caps/anti-cheat) + `RoundService.spec` (`_resolveOutcome` wipe→Lost/Morning, `_onCaught` Night-gate, `_setState`) — покрывают «переходы стейт-машины» + GeneratorService. Полный `_runRound` (async/timed) юнитом не покрывается — это e2e через Studio MCP.
+- **End-to-end (CI, реальный движок):** итерация через PR #1 (ветка в том же репо → секрет доступен). Раннер: `published version 5 → task COMPLETE → TestEZ success=56 failure=0`. CI-джоба **✓ success** (19s, шаг Tests НЕ skip). Доказано и обратное (раннер красит CI при `failure=2`).
+- **Локально:** Lune-скрипт парсится (без ключа выдаёт понятную ошибку, не падает); `selene src` 0/0/0 (scripts/ вне линта); StyLua src+tests ✓; `rojo build` ✓.
+- **Ветка:** `feat/p0-10-opencloud-ci` → PR #1 → мёрдж `--no-ff` в `dev`. Коммиты — см. `git log`.
+- **🔸 На потом:** деприкейшн Node 20 в CI (`actions/checkout@v4`) — отдельная мелкая задача (бамп до v5). Раннер: можно кэшировать версии/чистить старые place-versions (сейчас плодятся 3,4,5… — для graybox ок).
+- **Фаза 1 функционал+безопасность+CI-тесты закрыты. Осталось `P1-11`** (Mantle deploy на мёрдж в main — тот же Open Cloud-ключ).
