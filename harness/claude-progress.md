@@ -38,3 +38,18 @@
   - Инструменты `roblox-studio` MCP **не видны в текущей сессии Claude Code**: прокси стартовал, когда тумблер в Studio был выключен. Лечится **рестартом сессии** (Studio держать открытой с включённым тумблером). Проверить в начале следующей сессии.
   - ProfileStore по-прежнему отложен до `P1-08` (нет в реестре Wally).
 - **Коммит:** см. `git log` (P0-01).
+
+---
+
+## [P0-03] Graybox-спавн: игрок в сером зале, third-person — 2026-05-31
+- **Сделано:**
+  - `src/shared/Config/MapConfig.luau` (ModuleScript, data-driven размеры зала) + `src/server/GrayboxBuilder.server.luau` (серверный Script: идемпотентно строит пол + 4 стены + `SpawnLocation`, серый `SmoothPlastic`, всё `Anchored`).
+  - Локально: StyLua формат+check ✓, **Selene 0/0/0** ✓, `rojo build` ✓.
+  - Залито в Studio через Rojo live-sync (`rojo serve` :34872 + плагин Connect/Accept). Мост подтвердил: `GrayboxBuilder`=Script в `ServerScriptService.Server`, `MapConfig`=ModuleScript в `ReplicatedStorage.Shared.Config`.
+  - **End-to-end плейтест (через MCP `start_stop_play`):** `Graybox=[Floor, Wall1–4, SpawnLocation]` построен; `players=1, char=true, hrpY=4.0` (стоит на полу). Output: `[GrayboxBuilder] graybox built` (Server), ошибок нет. Скриншот: серый зал, аватар со спины = third-person (дефолт Classic).
+  - `P0-03` → `passes:true`.
+- **Следующее:** `P0-04` — подбор батарейки на полу (Interact → серверный инвентарь сессии). Появится первый RemoteEvent → middleware-валидация (`docs/02`) + вероятно Knit-бутстрап.
+- **Известные проблемы:**
+  - Graybox строится процедурно при старте плейтеста (в edit-режиме его нет) — ок для Фазы 0; настоящая авторская карта/кит — позже.
+  - `get_console_output` по MCP иногда отдаёт неполный/устаревший срез лога — визуальную проверку дублирую скриншотом / `execute_luau`.
+- **Коммит:** см. `git log` (P0-03).
