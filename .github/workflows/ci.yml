@@ -1,8 +1,8 @@
 name: CI
 
-# Pipeline: lint -> format-check -> build (+ test placeholder).
-# Real TestEZ via Open Cloud is P0-10 (needs scripts/run-tests.luau + OPEN_CLOUD_API_KEY).
-# Deploy (Mantle) is Phase 1-2 (see docs/05).
+# Pipeline: lint -> format-check -> build -> TestEZ (real engine via Open Cloud Luau Execution).
+# On push to `main` with green tests: `deploy` job publishes the place via Open Cloud (P1-11).
+# Deploy = lightweight Open Cloud publish (не Mantle — см. журнал P1-11): тот же OPEN_CLOUD_API_KEY.
 
 on:
   push:
@@ -42,3 +42,32 @@ jobs:
           fi
           rojo build --output game.rbxl
           lune run scripts/run-tests
+
+  # P1-11: авто-деплой в прод-плейс на мёрдж в main (только если lint-build-test зелёный).
+  deploy:
+    name: Deploy (Open Cloud publish, main only)
+    needs: lint-build-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain (Rokit)
+        uses: CompeyDev/setup-rokit@v0.1.2
+
+      - name: Install dependencies (Wally)
+        run: wally install
+
+      - name: Build (Rojo)
+        run: rojo build --output game.rbxl
+
+      - name: Deploy (publish to place)
+        env:
+          OPEN_CLOUD_API_KEY: ${{ secrets.OPEN_CLOUD_API_KEY }}
+        run: |
+          if [ -z "$OPEN_CLOUD_API_KEY" ]; then
+            echo "::error::No OPEN_CLOUD_API_KEY — cannot deploy."
+            exit 1
+          fi
+          lune run scripts/deploy
