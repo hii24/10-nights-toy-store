@@ -71,6 +71,7 @@ function DoorService:_onHoldEnded(door: BasePart, player: Player)
 	if hold and hold.player == player and door:GetAttribute(ATTR_BROKEN) == true then
 		self._holds[door] = nil
 		door:SetAttribute(ATTR_PROGRESS, 0)
+		player:SetAttribute(ATTR_PROGRESS, 0) -- сброс HUD-бара холдера (P1-07)
 	end
 end
 
@@ -80,10 +81,13 @@ function DoorService:_updateProgress()
 	local now = os.clock()
 	for door, hold in self._holds do
 		local elapsed = now - hold.startClock
-		door:SetAttribute(ATTR_PROGRESS, math.clamp(elapsed / DoorConfig.repairDuration, 0, 1))
+		local progress = math.clamp(elapsed / DoorConfig.repairDuration, 0, 1)
+		door:SetAttribute(ATTR_PROGRESS, progress)
+		hold.player:SetAttribute(ATTR_PROGRESS, progress) -- HUD-бар холдера (P1-07)
 		if
 			DoorService._isHoldValid(elapsed, DoorConfig.repairDuration, DoorConfig.holdTolerance)
 		then
+			hold.player:SetAttribute(ATTR_PROGRESS, 0) -- починено → сброс HUD-бара
 			self:_setBroken(door, false) -- засчитано полное реальное удержание → починена
 		end
 	end

@@ -15,7 +15,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local gui = Instance.new("ScreenGui")
 gui.Name = "RoundUi"
 gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
+gui.IgnoreGuiInset = false -- безопасные зоны (нотч/Dynamic Island); выровнено с HUD (P1-07)
 
 local label = Instance.new("TextLabel")
 label.Size = UDim2.fromScale(1, 0.18)

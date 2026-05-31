@@ -294,3 +294,19 @@
 - **Net-инфра заложена** — следующие client→server remote'ы добавлять через `RemoteSchema` + handler с middleware (`/add-validated-remote`).
 - **Ветка:** `feat/p1-06-session-upgrades` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Следующее:** `P1-07` (HUD на Fusion: батарея-бар, счётчик ночи, прогресс ремонта, revive-промпт; мини-UI апгрейда из P1-06 можно поднять до Fusion).
+
+---
+
+## [P1-07 — passes:true] HUD на Fusion (батарея/ночь/ремонт/revive) + upgrade-UI на Fusion — 2026-05-31
+Первый Fusion-HUD (0.3.0), реактивный к серверным бродкаст-атрибутам. По просьбе («подними») — upgrade-карточки P1-06 подняты до Fusion.
+- **Сделано:**
+  - `HudController.client` (НОВЫЙ, Fusion 0.3 scoped API): `attrValue` провязывает атрибут→Fusion `Value` (GetAttributeChangedSignal→:set), Computed-биндинги. Элементы: ночь `NIGHT n/3` (верх-право), батарея `Batteries: N` + power-бар (низ-лево), repair-бар (низ-центр, виден при 0<p<1), revive-текст (верх-центр). Мобильно: TextScaled, обводка, по углам, центр свободен, `IgnoreGuiInset=false` (safe zones).
+  - `UpgradeUiController.client` ПЕРЕПИСАН на Fusion (карточки swift/leaper/steady, Enabled-биндинг от RoundState, Activated→`SelectUpgrade:FireServer`; min-size+обводка для телефона). Сервер P1-06 не тронут.
+  - `DoorService` (правка): бродкаст `RepairProgress` на Player-холдера (для HUD-бара; сброс на complete/release). Read-only display.
+  - `RoundUiController` (правка): `IgnoreGuiInset=false` (выровнено с HUD, safe zones).
+- **End-to-end в Studio (execute_luau КЛИЕНТСКИЙ → видит HUD GUI):** HUD рендерится; ночь `NIGHT 1/3`; батарея `Batteries: N`; **repair-бар fill точно трекает серверный RepairProgress** (0.12→0.62, виден 0<p<1, сброс на релиз) — Fusion-реактивность end-to-end; revive-текст `CAUGHT!...` при InToyBox; upgrade-карточки Fusion (Enabled-биндинг, клик применяет — `WalkSpeed→18.4` от твоего клика «steady»). Условная видимость работает. Консоль без ошибок Fusion.
+- **performance-auditor:** 1-й прогон NEEDS WORK (2 HIGH: ReviveLabel перекрывал центр-лейбл; Supplies/NightLabel клип за нотч/home bar). Починил (ReviveLabel Y→0.27; IgnoreGuiInset=false + отступы; +min-size/обводка карточек). 2-й прогон: HIGH закрыты, но ложная сработка (якобы нет обводки у RoundUiController — она ЕСТЬ, строка 27). 3-й прогон: **PASS** (нет реальных crit/high).
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓. **TestEZ: passed=39** (без изменений — HUD=UI, DoorService-правка аддитивна).
+- **🔸 На потом:** реальный тест на телефоне (нотч/Dynamic Island, узкий/широкий экран) до `main`; ReviveLabel-позиция при одновременных RoundUi+HUD; консолидация RoundUiController в HUD.
+- **Ветка:** `feat/p1-07-fusion-hud` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Фаза 1: 7/11.** **Следующее:** `P1-08` (ProfileStore: coins/XP персист между сессиями + fail-handling — ретрай/кик, НЕ дефолт).
