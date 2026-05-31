@@ -6,7 +6,7 @@ local RoundConfig = {
 	prepDuration = 5, -- Preparation, сек
 	nightDuration = 30, -- Night (за ночь), сек (graybox; 3 мин = поздний баланс)
 	morningDuration = 4, -- Morning между ночами, сек
-	upgradeDuration = 5, -- Upgrade-фаза (плейсхолдер; карточки → P1-06), сек
+	upgradeDuration = 8, -- Upgrade-фаза: окно выбора апгрейд-карты (P1-06), сек
 	tickInterval = 0.2, -- гранулярность таймера/проверок, сек
 }
 
