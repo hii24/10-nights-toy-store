@@ -14,6 +14,12 @@ return function()
 				FindFirstChildOfClass = function(_, className)
 					return className == "Humanoid" and { Health = 100 } or nil
 				end,
+				-- HRP у генератора → проходит серверную distance-проверку (P1-10 Interaction.playerWithin).
+				FindFirstChild = function(_, childName)
+					return childName == "HumanoidRootPart"
+							and { Position = GeneratorConfig.position }
+						or nil
+				end,
 			},
 		}
 	end
@@ -32,6 +38,11 @@ return function()
 	beforeEach(function()
 		GeneratorService._lastInsert = {}
 		GeneratorService._power = 0
+		-- Стаб генератора (KnitStart/_build не запускаются): Position для distance-чека + no-op SetAttribute.
+		GeneratorService._generator = {
+			Position = GeneratorConfig.position,
+			SetAttribute = function() end,
+		}
 	end)
 
 	describe("_tryInsert (anti-cheat)", function()
