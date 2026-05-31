@@ -138,3 +138,17 @@
 - **Хвост:** несрочный warning в CI про Node 20 (`actions/checkout@v4`) — обновить на новую версию позже (не падение).
 - **Важно:** игра от этого НЕ зависит — сборка/запуск/публикация локальны (Rojo/Studio/Publish to Roblox); CI — автоматизация-удобство. То же касается «зелёных в CI» в `P0-09`/`P0-10` — их суть (TestEZ) можно гонять локально в Studio, отложив только CI-галочку.
 - **Коммит:** `399bc77`.
+
+---
+
+## [P0-09] Security-валидация: TestEZ-спеки (мусор → сервер отвергает) — 2026-05-31
+- **Сделано:**
+  - **Локальный TestEZ-харнесс:** `default.project.json` расширен (`DevPackages`→`ReplicatedStorage.DevPackages`, `tests`→`ServerScriptService.Tests`). 3 спека в `tests/`.
+  - **Спеки (docs/02 анти-чит):** `BatteryService` (TryConsume отвергает `amount≤0`/`>count`, GetCount=0, `_tryPickup` whitelist); `GeneratorService` (вставка отвергается без батарейки / при полном / у мёртвого); `RoundService` (`_onCaught` только в `Night`).
+  - Локально: StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` (с tests/DevPackages) ✓.
+  - **Прогон TestEZ через мост (edit-режим):** `passed=10, failed=0, skipped=0`. Все 3 шага P0-09 (мусор → сервер отвергает → спеки проходят) выполнены.
+  - `P0-09` → `passes:true`.
+- **Пометка:** прогон **ЛОКАЛЬНЫЙ** (через Studio-мост, edit-режим, плагин-контекст видит серверные модули), не в CI. Реальный TestEZ-в-CI через Open Cloud — это `P0-10` (вариант B, нужен Open Cloud key для CI-части). CI на `src` (Selene/StyLua/rojo build) — зелёный.
+- **Следующее:** `P0-10` — TestEZ покрытие (RoundService переходы + GeneratorService) + «зелёные в CI через Open Cloud» (нужен Open Cloud key для CI-части; локальная часть — как тут).
+- **Известные проблемы:** `tests/` не линтятся Selene (TestEZ-DSL globals; CI делает только `selene src`); prod-build project без тестов — при шиппинге.
+- **Коммит:** см. `git log` (P0-09).
