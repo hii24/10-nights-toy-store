@@ -177,3 +177,22 @@
 - **Грабли (важно для локальных прогонов):** Studio кэширует `require` — после правки модулей нужен **переоткрыть place** (или fresh playtest), иначе TestEZ гоняет старые версии. (Сегодня поймали: правки синкались, но прогон давал старые 10 → переоткрытие game.rbxlx дало 17.)
 - **Фаза 0:** **9/10** (геймплей + анти-чит + ядро-покрытие; остаётся только «зелёные в CI через Open Cloud» для `P0-10`/`P0-09`).
 - **Коммит:** см. `git log` (P0-10).
+
+---
+
+## [P1-01 — passes:true] Полный цикл из 3 ночей (Preparation/Night/Morning/Upgrade → EndMatch) — 2026-05-31
+Первая фича **Фазы 1**. `RoundService` расширен с одной ночи (P0-08) до полного матча из 3 ночей.
+- **Сделано:**
+  - `RoundConfig`: `nightCount=3`, `morningDuration=4`, `upgradeDuration=5` (graybox; `nightDuration=30` — 3 мин = поздний баланс).
+  - `RoundService._runRound` переработан: `Prep → for night=1..3 { _setNight → Night(enemy on, _nightCountdown) → enemy off → _resolveOutcome()==Lost ? Lost+return : Morning → night<3 ? Upgrade } → EndMatch`. Новые состояния `Upgrade`/`EndMatch`, атрибут `RoundNight`. Хелперы `_setNight`/`_countdown`/`_nightCountdown` (досрочный выход по `_caught`). Реюз `_resolveOutcome()` (P0-10).
+  - `RoundUiController`: читает `RoundNight`; тексты `NIGHT {n} - SURVIVE {t}s` / `NIGHT {n} SURVIVED` / `UPGRADE... {t}s` / `YOU WON - ALL NIGHTS SURVIVED` / `CAUGHT! (Night {n})`.
+  - Враг гейтится по ночам (active только в `Night` через `EnemyService:SetActive`). Всё серверно; клиент только реагирует на атрибуты.
+- **End-to-end в Studio (MCP-опрос `RoundState`/`RoundNight`):**
+  - **Плейтест A (победа):** `NIGHT 1 - SURVIVE 20s` → захвачено `Morning/N2 → Upgrade/N2 → Night/N3` → `EndMatch/N3`, UI `"YOU WON - ALL NIGHTS SURVIVED"`. Счётчик ночей 1→2→3, Morning+Upgrade между ночами ✓.
+  - **Плейтест B (поражение):** во время Night медведь поймал игрока → `state=Lost`, UI `"CAUGHT! (Night 2)"` (терминально) ✓.
+  - Консоль — без ошибок наших скриптов (только Studio-тема `StyleRule`).
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓.
+- **Грабли (повтор P0-10):** Studio кэширует `require`/Rojo-sync в edit-режиме — для актуального кода переоткрывали `game.rbxlx`. Серверный `execute_luau`-телепорт персонажа ненадёжен (клиентское сетевое владение откатывает позицию) — для ловли двигали анкорного медведя на игрока.
+- **Скоуп:** Upgrade-фаза = структурный плейсхолдер (карточки → P1-06). Рестарт/Intermission-петля — позже.
+- **Ветка:** `feat/p1-01-three-night-cycle` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Следующее:** `P1-02` (Wind-Up Soldier, появляется на Night 2).
