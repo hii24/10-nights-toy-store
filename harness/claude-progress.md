@@ -412,3 +412,23 @@
 - **Ветка:** `feat/p0-10-opencloud-ci` → PR #1 → мёрдж `--no-ff` в `dev`. Коммиты — см. `git log`.
 - **🔸 На потом:** деприкейшн Node 20 в CI (`actions/checkout@v4`) — отдельная мелкая задача (бамп до v5). Раннер: можно кэшировать версии/чистить старые place-versions (сейчас плодятся 3,4,5… — для graybox ок).
 - **Фаза 1 функционал+безопасность+CI-тесты закрыты. Осталось `P1-11`** (Mantle deploy на мёрдж в main — тот же Open Cloud-ключ).
+
+---
+
+## [P1-11 — passes:true] Авто-деплой на мёрдж в main (Open Cloud publish) — 2026-06-01
+Последняя фича Фазы 1 — авто-деплой в плейс на мёрдж в `main`, гейт по зелёным тестам. **Закрывает MVP-скоуп (21/21).**
+- **Решение по подходу (выбор юзера, после research):** НЕ полный Mantle, а **лёгкий Open Cloud publish**.
+  Mantle на УЖЕ существующем плейсе рискован (его доки: import experimental, «may destroy your assets», «most resources recreated»),
+  требует `ROBLOSECURITY`-куки (полный доступ к аккаунту в CI) + AWS S3 для remote-state. Лёгкий подход публикует в текущий
+  плейс через УЖЕ настроенный `OPEN_CLOUD_API_KEY` (`universe-places:write`) — **без новых секретов, без куки, без AWS**, сохраняет `placeId`.
+  Описание фичи («Mantle deploy») в feature_list НЕ редактировал (правило) — реализован ИНТЕНТ; девиация — здесь.
+- **Сделано:**
+  - `scripts/deploy.luau` (НОВЫЙ, Lune): publish `game.rbxl` как Published-версию (`POST /universes/v1/{u}/places/{p}/versions?versionType=Published`, octet-stream). Печать версии + exit 0/1. Standalone (deploy ≠ test; переиспользует доказанный в P0-10 эндпоинт).
+  - `.github/workflows/ci.yml` (правка): джоба `deploy` — `needs: lint-build-test` (тесты-гейт) + `if: push && ref==main` (только мёрдж в main, не PR/dev). Steps: rokit → wally → `rojo build --output game.rbxl` → `lune run scripts/deploy`. Шапка обновлена.
+- **End-to-end (CI, реальный релиз):**
+  - dev-пуш: `lint-build-test` ✓, джоба `deploy` корректно **SKIPPED** (`if main`).
+  - Создал `main` от dev (ff `c5eadf5..857ecfe` — origin/main был старый scaffold-коммит) → push main → CI: `lint-build-test` ✓ (TestEZ 56/0/0) → **`deploy` success: `✅ deployed version 5 → place 84110572941861 (Published)`**. Это и есть «мёрдж в main → авто-деплой».
+- **Локально:** Lune-скрипт парсится (без ключа — понятная ошибка); ci.yml — валидный YAML (`deploy.needs=lint-build-test`, `if main`); selene 0/0/0; StyLua ✓; build ✓.
+- **🔸 На потом:** деплой в приватный dev-плейс (для прод-релиза — отдельный плейс/visibility); каждый main-пуш плодит place-version; Node 20 deprecation в CI (отдельная задача); main отстаёт от dev на этот passes/journal-коммит (подтянётся следующим релизом).
+- **Ветка:** `feat/p1-11-deploy` → мёрдж `--no-ff` в `dev` → `main` (релиз). Коммиты — см. `git log`.
+- **🎉 MVP-скоуп Фазы 1 ЗАКРЫТ: 21/21.** Граф-бокс кооп-survival: 3 ночи + стейт-машина + 3 врага + repair/revive + апгрейды + Fusion HUD + ProfileStore + воронка аналитики + анти-эксплойт middleware + реальный TestEZ в CI + авто-деплой. Дальше — контент/графика/баланс (новая фаза, явным планом; гардрейлы MVP не нарушать).
