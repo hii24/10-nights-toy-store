@@ -1,7 +1,7 @@
 {
   "_rules": "Агенты ТОЛЬКО меняют поле 'passes'. Удалять или редактировать фичи/steps запрещено (ведёт к пропущенной/багованной функциональности). Добавлять новые фичи можно (initializer/при расширении скоупа). 'passes:true' ставить ТОЛЬКО после end-to-end проверки в Studio.",
   "features": [
-    { "id": "P0-01", "phase": 0, "priority": 1, "category": "setup", "description": "Репозиторий собирается: rojo build даёт .rbxlx без ошибок", "steps": ["rokit install", "wally install", "rojo build --output game.rbxlx", "Открыть файл в Studio без ошибок"], "passes": false },
+    { "id": "P0-01", "phase": 0, "priority": 1, "category": "setup", "description": "Репозиторий собирается: rojo build даёт .rbxlx без ошибок", "steps": ["rokit install", "wally install", "rojo build --output game.rbxlx", "Открыть файл в Studio без ошибок"], "passes": true },
     { "id": "P0-02", "phase": 0, "priority": 2, "category": "setup", "description": "CI: lint+build+test проходят на пуше (deploy выключен)", "steps": ["Запушить в dev", "GitHub Actions: Selene+StyLua+rojo build+TestEZ зелёные"], "passes": false },
     { "id": "P0-03", "phase": 0, "priority": 3, "category": "functional", "description": "Игрок спавнится в graybox-сцене (серые Part'ы)", "steps": ["Запустить плейтест", "Игрок появляется в зале", "Камера third-person"], "passes": false },
     { "id": "P0-04", "phase": 0, "priority": 4, "category": "functional", "description": "Подбор батарейки на полу", "steps": ["Подойти к батарейке", "Interact", "Батарейка в инвентаре сессии (серверно)"], "passes": false },
