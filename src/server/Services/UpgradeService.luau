@@ -103,6 +103,7 @@ function UpgradeService:_onSelect(player: Player, id: any)
 	m.walkSpeed *= card.walkSpeedMult
 	m.jumpPower *= card.jumpPowerMult
 	self:_applyToCharacter(player)
+	self._analytics:LogFunnelStep(player, "upgrade_selected") -- воронка (P1-09); только на ВАЛИДный выбор
 end
 
 function UpgradeService:_onRoundStateChanged()
@@ -110,6 +111,10 @@ function UpgradeService:_onRoundStateChanged()
 	if Workspace:GetAttribute(ATTR_ROUND_STATE) == STATE_UPGRADE then
 		self._chosenThisPhase = {}
 	end
+end
+
+function UpgradeService:KnitInit()
+	self._analytics = Knit.GetService("AnalyticsService")
 end
 
 function UpgradeService:KnitStart()

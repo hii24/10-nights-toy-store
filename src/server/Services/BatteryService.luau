@@ -78,7 +78,7 @@ function BatteryService:_tryPickup(prompt: ProximityPrompt, player: Player)
 	battery:Destroy()
 
 	self:_setCount(player, self:GetCount(player) + 1)
-	-- TODO(P1-09): аналитика first_battery_picked
+	self._analytics:LogFunnelStep(player, "first_battery_picked") -- воронка (P1-09); дедуп → «first»
 end
 
 function BatteryService:_spawnBattery(position: Vector3, folder: Folder)
@@ -104,6 +104,10 @@ function BatteryService:_spawnBattery(position: Vector3, folder: Folder)
 	end)
 
 	part.Parent = folder
+end
+
+function BatteryService:KnitInit()
+	self._analytics = Knit.GetService("AnalyticsService")
 end
 
 function BatteryService:KnitStart()
