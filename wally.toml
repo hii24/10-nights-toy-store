@@ -8,11 +8,10 @@ realm = "shared"
 [dependencies]
 Knit = "sleitnick/knit@1.7.0"
 Fusion = "elttob/fusion@0.3.0"
-# ProfileStore — нужен только на Фазе 1 (P1-08, персистентность). Официально это одиночный
-# ModuleScript (manual из Roblox library); официального пакета в реестре Wally НЕТ
-# (есть лишь сторонние реаплоады — не доверяем без проверки). Подключить на Фазе 1:
-# вендорнуть официальный модуль в src/shared ИЛИ взять проверенный источник.
-# ProfileStore = "madstudioroblox/profilestore@1.0.0"  # ← не существует в реестре
+# ProfileStore (P1-08, персистентность) — ВЕНДОРНУТ как единый ModuleScript:
+# vendor/ProfileStore.luau (официальный github.com/MadStudioRoblox/ProfileStore, by loleris).
+# Сервер-онли → маппится в ServerScriptService.Server.Vendor (project.json), вне `src` (не линтится).
+# Офиц. Wally-пакета в реестре нет; сторонним реаплоадам не доверяем.
 
 [dev-dependencies]
 TestEZ = "roblox/testez@0.4.1"

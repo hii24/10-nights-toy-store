@@ -3,6 +3,7 @@
 -- Preparation → [Night N → Morning → Upgrade] ×3 → EndMatch; wipe (все в toy box) → Lost.
 -- Гейтит EnemyService; бродкаст RoundState/RoundTimeLeft/RoundNight в Workspace для клиента.
 
+local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,6 +14,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local RoundConfig = require(Config:WaitForChild("RoundConfig"))
 local EnemyConfig = require(Config:WaitForChild("EnemyConfig"))
+local DataConfig = require(Config:WaitForChild("DataConfig"))
 
 local ATTR_STATE = "RoundState"
 local ATTR_TIME = "RoundTimeLeft"
@@ -79,6 +81,18 @@ function RoundService:_nightCountdown(duration: number)
 	self:_setTime(0)
 end
 
+-- Начисление выжившим (P1-08): coins/xp всем игрокам в матче. Серверно (DataService).
+function RoundService:_awardSurvivors(coins: number, xp: number)
+	for _, player in Players:GetPlayers() do
+		if coins > 0 then
+			self._data:AddCoins(player, coins)
+		end
+		if xp > 0 then
+			self._data:AddXp(player, xp)
+		end
+	end
+end
+
 function RoundService:_runRound()
 	self._enemy:SetActive(false)
 	self._enemy:SetSoldierActive(false)
@@ -109,6 +123,7 @@ function RoundService:_runRound()
 		-- Пережил ночь → Morning (освобождаем всех из коробок — чистый старт).
 		self:_setState(STATE_MORNING)
 		self._revive:FreeAll()
+		self:_awardSurvivors(DataConfig.coinsPerNight, DataConfig.xpPerNight) -- выжил ночь → награда
 		self:_countdown(RoundConfig.morningDuration)
 
 		-- Между ночами — Upgrade (плейсхолдер; карточки → P1-06).
@@ -120,11 +135,13 @@ function RoundService:_runRound()
 
 	-- Пережил все ночи → победа.
 	self:_setState(STATE_ENDMATCH)
+	self:_awardSurvivors(DataConfig.coinsPerWin, 0) -- победа → бонус coins
 end
 
 function RoundService:KnitInit()
 	self._enemy = Knit.GetService("EnemyService")
 	self._revive = Knit.GetService("ReviveService")
+	self._data = Knit.GetService("DataService")
 end
 
 function RoundService:KnitStart()
