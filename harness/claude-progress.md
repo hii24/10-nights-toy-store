@@ -452,3 +452,15 @@
 - **Верификация (документ → не Studio-плейтест):** трактовка — «end-to-end» для doc-фичи = полнота + пригодность как ГЕЙТ + ревью (правило «passes:true после Studio» относится к геймплею). 3 шага feature_list покрыты: палитра день/ночь ✓, материалы+поли-бюджет ✓, style-pass для всех ассетов ✓. Markdown вне линта/билда (docs не трогают selene/stylua/rojo) — CI зелёный без изменений.
 - **Ветка:** `feat/p2-01-art-bible` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Фаза 2: 1/13.** **Следующее:** `P2-02` (модульный кит магазина — первая реальная генерация ассетов через style-pass гейт; новый домен — Cube 3D / Tarmac / агент `asset-pipeline`, потребует инструментов генерации + участия юзера для аплоада).
+
+---
+
+## [P2-02 — passes:true] Модульный кит магазина (Part-based, по библии) — 2026-06-01
+Карта из «одного серого бокса» → **модульный стилизованный магазин**. Подход (реалистично без аплоада, по согласованию): **Part-based** low-poly кит — модули = Part-модели по `docs/08`; один template-тип → клоны. Кастом-меши (Cube3D/Tarmac) — drop-in позже (P2-05/P2-07): MeshPart вместо part-спека, та же `MapBuilder`.
+- **Сделано:** `src/shared/Config/KitConfig.luau` (НОВЫЙ: palette/materials по библии, shell, **10 модулей**, layout, `isClearOf`+gameplayPoints) · `src/server/MapBuilder.server.luau` (НОВЫЙ, **заменяет** GrayboxBuilder; шелл+спавн сохранены — P0-03 не регрессит; каждый тип = template РАЗ → **клоны** по layout, инстансинг; рантайм-guard clearance) · `GrayboxBuilder.server.luau` УДАЛЁН · `tests/KitConfig.spec.luau` (НОВЫЙ: isClearOf + модули валидны + floor не блокирует геймплей).
+- **End-to-end в Studio:** `Workspace.Store` — шелл + клоны shelf×11/lamp×5/crate×2/camera×2/rack×2/box×2/vent×2/counter/register/neonSign. **Клон-дисциплина** (template→N клонов). **Геймплей цел** (5 батареек, генератор, 2 двери, toybox; спавн чист, игрок стоит). TestEZ **62/0/0** (+KitConfig.spec).
+- **Review (performance-auditor): CONDITIONAL PASS → все находки закрыты + перепроверены вживую.** 137 parts ≪ §5-бюджет 150. Фиксы: лампы были зарыты в потолок → опущены (`neonY=11.15<11.5`, видны); candyRed-LED камеры = конфликт «alarm» §3.2 → powerCyan; neon `CastShadow=false`; rack steelBlue→neutralDark (зарезервирован за Солдатом §2); register-клип; isClearOf оживлён рантайм-guard'ом.
+- **Локально:** Selene 0/0/0, StyLua ✓, `rojo build` ✓.
+- **🔸 На потом (ожидаемо):** кастом-МЕШИ вместо Part-моделей (P2-05/P2-07 — drop-in в MapBuilder); реал-девайс перф — **P2-13**; `mount="wall"` в MapBuilder инертен (полагается на layout-Y).
+- **Ветка:** `feat/p2-02-store-kit` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Фаза 2: 2/13.** **Следующее:** `P2-03` (кастомный Mr. Huggy Bear + анимации — лицо игры; кастом-модель, потребует генерации/заказа + аплоада, через §8-гейт).
