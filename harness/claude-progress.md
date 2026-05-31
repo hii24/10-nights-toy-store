@@ -196,3 +196,26 @@
 - **Скоуп:** Upgrade-фаза = структурный плейсхолдер (карточки → P1-06). Рестарт/Intermission-петля — позже.
 - **Ветка:** `feat/p1-01-three-night-cycle` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Следующее:** `P1-02` (Wind-Up Soldier, появляется на Night 2).
+
+---
+
+## [P1-02 — passes:true] Wind-Up Soldier (2-й враг: линейный патруль, толкает, шумит) — 2026-05-31
+Вторая фича Фазы 1. Второй враг с дизайн-ролью «помеха» (НЕ летальный, в отличие от медведя). Вся логика в `EnemyService` (docs/01).
+- **Сделано:**
+  - `EnemyConfig`: блок солдата (`soldierFirstNight=2`, путь A↔B `(0,0,-16)`↔`(0,0,16)`, `soldierSpeed=12`, `soldierPushRadius=6`, `soldierPushForce/Up`, `soldierPushCooldown=1.5`, `soldierNoiseInterval=0.8`).
+  - `EnemyService`: `_buildSoldier` (anchored, CanCollide=false), `SetSoldierActive`, `_stepSoldier` (ping-pong патруль A↔B + детект пуша + шум-пульс), `_pushPlayer` (атрибуты на Player), чистый `_shouldPush(distance,lastPush,now,radius,cooldown)`. Heartbeat зовёт `_step`(медведь)+`_stepSoldier`. Чистка `_lastPush` на PlayerRemoving.
+  - `RoundService`: гейт `SetSoldierActive(night >= soldierFirstNight)` в ночном цикле.
+  - `SoldierController.client.luau` (НОВЫЙ): слушает `SoldierPushTick` на LocalPlayer → `HRP:ApplyImpulse` (knockback своему персонажу — ownership-safe).
+  - `tests/EnemyService.spec.luau` (НОВЫЙ): 5 юнитов `_shouldPush` (радиус + кулдаун).
+- **Толчок (ownership-safe, важно):** сервер — авторитет (детект в радиусе + rate-limit) → ставит атрибуты `SoldierPushTick/X/Z` на Player → клиент применяет импульс СВОЕМУ персонажу. Серверный пуш чужого персонажа откатывается сетевым владением (грабли из P1-01) — поэтому через клиент. Без RemoteEvent (атрибут-broadcast, как Фаза 0).
+- **End-to-end в Studio (MCP, медведь отодвигался для изоляции):**
+  - **Night 1:** `SoldierActive=false`, припаркован на `(0,2,-16)`, `moved_in_3s=0.000` ✓.
+  - **Night 2:** `SoldierActive=true`; Z-трек `13→-14`(разворот у pathA)`→7` — линейный ping-pong ✓; `SoldierNoisePulse` растёт ✓.
+  - **Толчок:** `pushCountΔ=1`, на Player `tick/X/Z` выставлены, **HRP-скорость пик 50.8** (тонкая выборка 0.05с) → клиент-импульс работает; игрок смещается ✓; кулдаун держит. Раньше казалось «0.1» — артефакт грубой выборки 0.25с.
+  - **Не летален:** под толчками (медведь отодвинут) дошли до `EndMatch`, `everLost=false` ✓. (Эмерджентно: без изоляции солдат может толкнуть игрока в медведя → Lost — это фича, не баг.)
+  - Консоль — без ошибок наших скриптов.
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓. **TestEZ через мост: passed=22 failed=0** (17 + 5 новых).
+- **Заметка по dev-loop:** в этот раз **Rojo Connect сработал** (адрес `127.0.0.1`, не `localhost`) и дал свежий require-кэш — переоткрывать `game.rbxlx` НЕ пришлось.
+- **Скоуп:** «шумит» = плейсхолдер-пульс (реальное аудио — asset-фаза). «Мешает ремонту» — литерально с P1-04 (ремонт ещё нет); пуш — примитив помехи.
+- **Ветка:** `feat/p1-02-windup-soldier` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Следующее:** `P1-03` (Doll Blinker — движется только когда не смотрят; сервер: look-вектор + LOS).
