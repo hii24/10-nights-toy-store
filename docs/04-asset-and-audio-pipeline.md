@@ -3,6 +3,8 @@
 ## Сначала — арт-библия (заблокировать)
 Палитра день (warm yellow / candy red / toy blue / soft green / plastic pink) и ночь (deep blue / purple / red alarm / green emergency / flashlight cones); материалы (plastic glossy, cardboard matte, plush fabric, metal, emissive neon); поли-бюджет; мобильная читаемость. **Через библию прогоняем ВСЁ** — иначе главный AAA-риск: развал стиля.
 
+➡️ **Полная зафиксированная библия (P2-01): [`docs/08-art-bible.md`](08-art-bible.md)** — конкретные HEX/RGB палитры день+ночь, 5 материал-семейств → `Enum.Material`, поли-бюджет (tris/draw-calls/текстуры), мобильная читаемость, **style-pass чеклист-ГЕЙТ** (§8) для каждого ассета P2-02+.
+
 ## Матрица: генерить / брать / заказывать
 - **ГЕНЕРИТЬ (ИИ Roblox):** фоновые игрушки (car, ball, blocks, duck, dino, train) — Cube 3D; материалы — Material Generator; декали/постеры — Texture Generator. ~80% недифференцирующего контента. Ассеты из встроенных ИИ-инструментов Roblox можно использовать в опубликованных играх.
 - **БРАТЬ (Creator Store) — только blockout/коммодити:** заглушки на graybox. Строго: без скриптов, чистить Explorer, не тянуть тяжёлое, без узнаваемых IP. Для финала опасно (стиль расходится).
