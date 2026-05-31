@@ -3,6 +3,7 @@
 -- StreamingEnabled держим врага на сервере). НЕ PathfindingService — ноды.
 -- * Mr. Huggy Bear (P0-07/08): waypoint-патруль, ловит → Lost. Скорость = f(GeneratorPowered).
 -- * Wind-Up Soldier (P1-02): линейный патруль A↔B, толкает (НЕ летально), шумит; с Night 2.
+-- * Doll Blinker (P1-03): крадётся в «слепые» тики (look-вектор+LOS), замирает под взглядом; с Night 3.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -30,6 +31,10 @@ local ATTR_PUSH_TICK = "SoldierPushTick"
 local ATTR_PUSH_X = "SoldierPushX"
 local ATTR_PUSH_Z = "SoldierPushZ"
 
+local DOLL_NAME = "DollBlinker"
+local ATTR_DOLL_ACTIVE = "DollActive" -- кукла активна (Night >= dollFirstNight)
+local ATTR_DOLL_OBSERVED = "DollObserved" -- сейчас под взглядом (заморожена)
+
 local EnemyService = Knit.CreateService({
 	Name = "EnemyService",
 })
@@ -44,6 +49,9 @@ EnemyService._lastPush = {} -- [Player] = os.clock() последнего тол
 EnemyService._noiseClock = 0
 -- _soldier / _soldierY / _soldierTarget задаются в _buildSoldier().
 
+EnemyService._dollActive = false
+-- _doll / _dollY задаются в _buildDoll().
+
 -- Хук для RoundService (P0-08): гейтить патруль по ночам.
 function EnemyService:SetActive(active: boolean)
 	self._active = active
@@ -53,6 +61,12 @@ end
 function EnemyService:SetSoldierActive(active: boolean)
 	self._soldierActive = active
 	Workspace:SetAttribute(ATTR_SOLDIER_ACTIVE, active)
+end
+
+-- Хук для RoundService (P1-03): кукла активна с Night >= dollFirstNight.
+function EnemyService:SetDollActive(active: boolean)
+	self._dollActive = active
+	Workspace:SetAttribute(ATTR_DOLL_ACTIVE, active)
 end
 
 -- Колбэк ловли (ставит RoundService): зовётся при игроке в catchRadius.
@@ -235,6 +249,119 @@ function EnemyService:_buildSoldier()
 	soldier.Parent = Workspace
 end
 
+-- Чистый предикат «смотрит на куклу» (тестируемо): угол взгляда в пределах конуса.
+function EnemyService._isLookedAt(
+	lookVector: Vector3,
+	dirToDoll: Vector3,
+	dotThreshold: number
+): boolean
+	if lookVector.Magnitude < 1e-4 or dirToDoll.Magnitude < 1e-4 then
+		return false
+	end
+	return lookVector.Unit:Dot(dirToDoll.Unit) >= dotThreshold
+end
+
+-- LOS кукла→игрок: луч не должен упереться в препятствие (исключаем куклу и персонажа).
+function EnemyService:_dollHasLOS(dollPos: Vector3, character: Model): boolean
+	local hrp = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not hrp then
+		return false
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { self._doll, character }
+	local result = Workspace:Raycast(dollPos, hrp.Position - dollPos, params)
+	return result == nil -- ничего между куклой и игроком → видно
+end
+
+-- Наблюдаема ли кукла хоть одним игроком (угол взгляда + LOS). Серверно, анти-чит.
+function EnemyService:_isDollObserved(dollPos: Vector3): boolean
+	for _, plr in Players:GetPlayers() do
+		local char = plr.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if hrp then
+			local dirToDoll = dollPos - hrp.Position
+			if
+				EnemyService._isLookedAt(
+					hrp.CFrame.LookVector,
+					dirToDoll,
+					EnemyConfig.dollViewDotThreshold
+				) and self:_dollHasLOS(dollPos, char)
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- Ближайший к кукле HRP (цель движения в слепой тик).
+function EnemyService:_nearestPlayerHrp(dollPos: Vector3): BasePart?
+	local nearest: BasePart? = nil
+	local nearestDist = math.huge
+	for _, plr in Players:GetPlayers() do
+		local char = plr.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if hrp then
+			local d = (hrp.Position - dollPos).Magnitude
+			if d < nearestDist then
+				nearestDist = d
+				nearest = hrp
+			end
+		end
+	end
+	return nearest
+end
+
+function EnemyService:_stepDoll(dt: number)
+	if not self._dollActive then
+		return
+	end
+	local doll = self._doll
+	if not doll or not doll.Parent then
+		return
+	end
+
+	-- Под взглядом → freeze; в «слепой» тик → крадётся к ближайшему игроку.
+	local observed = self:_isDollObserved(doll.Position)
+	Workspace:SetAttribute(ATTR_DOLL_OBSERVED, observed)
+	if observed then
+		return
+	end
+
+	local targetHrp = self:_nearestPlayerHrp(doll.Position)
+	if not targetHrp then
+		return
+	end
+	local goal = Vector3.new(targetHrp.Position.X, self._dollY, targetHrp.Position.Z)
+	local delta = goal - doll.Position
+	local dist = delta.Magnitude
+	if dist <= EnemyConfig.dollReachEpsilon then
+		return -- дошла — безвредно стоит (НЕ ловит)
+	end
+	local dir = delta.Unit
+	local newPos = doll.Position + dir * math.min(EnemyConfig.dollSpeed * dt, dist)
+	doll.CFrame = CFrame.lookAt(newPos, newPos + dir)
+end
+
+function EnemyService:_buildDoll()
+	local startPos = EnemyConfig.dollStart
+	local dollY = EnemyConfig.dollSize.Y / 2
+
+	local doll = Instance.new("Part")
+	doll.Name = DOLL_NAME
+	doll.Size = EnemyConfig.dollSize
+	doll.Anchored = true
+	doll.CanCollide = false -- безвредна: проходит сквозь, без физ-блока
+	doll.Color = EnemyConfig.dollColor
+	doll.Material = EnemyConfig.dollMaterial
+	doll.CFrame = CFrame.new(startPos.X, dollY, startPos.Z)
+
+	self._doll = doll
+	self._dollY = dollY
+	doll.Parent = Workspace
+end
+
 function EnemyService:KnitStart()
 	self:_build()
 	self:_setWaypoint(1)
@@ -245,6 +372,10 @@ function EnemyService:KnitStart()
 	Workspace:SetAttribute(ATTR_SOLDIER_NOISE, 0)
 	Workspace:SetAttribute(ATTR_SOLDIER_PUSH_COUNT, 0)
 
+	self:_buildDoll()
+	Workspace:SetAttribute(ATTR_DOLL_ACTIVE, false)
+	Workspace:SetAttribute(ATTR_DOLL_OBSERVED, false)
+
 	-- Чистим rate-limit-стейт ушедших игроков (нет утечки ссылок).
 	Players.PlayerRemoving:Connect(function(plr: Player)
 		self._lastPush[plr] = nil
@@ -253,10 +384,11 @@ function EnemyService:KnitStart()
 	RunService.Heartbeat:Connect(function(dt: number)
 		self:_step(dt)
 		self:_stepSoldier(dt)
+		self:_stepDoll(dt)
 	end)
 
 	print(
-		`[EnemyService] Mr. Bear patrolling {#EnemyConfig.waypoints} waypoints; Soldier ready (night {EnemyConfig.soldierFirstNight}+)`
+		`[EnemyService] Bear + Soldier (night {EnemyConfig.soldierFirstNight}+) + Doll (night {EnemyConfig.dollFirstNight}+) ready`
 	)
 end
 

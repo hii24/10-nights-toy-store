@@ -34,4 +34,39 @@ return function()
 			expect(EnemyService._shouldPush(1, 100, 102, RADIUS, COOLDOWN)).to.equal(true)
 		end)
 	end)
+
+	describe("_isLookedAt (Doll Blinker view cone)", function()
+		local THRESHOLD = 0.5 -- конус ~120° (как dollViewDotThreshold)
+		local forward = Vector3.new(0, 0, -1)
+
+		it("sees the doll straight ahead", function()
+			expect(EnemyService._isLookedAt(forward, Vector3.new(0, 0, -10), THRESHOLD)).to.equal(
+				true
+			)
+		end)
+
+		it("does not see the doll to the side (perpendicular)", function()
+			expect(EnemyService._isLookedAt(forward, Vector3.new(10, 0, 0), THRESHOLD)).to.equal(
+				false
+			)
+		end)
+
+		it("does not see the doll behind", function()
+			expect(EnemyService._isLookedAt(forward, Vector3.new(0, 0, 10), THRESHOLD)).to.equal(
+				false
+			)
+		end)
+
+		it("sees the doll just inside the cone (~50deg)", function()
+			expect(EnemyService._isLookedAt(forward, Vector3.new(0.766, 0, -0.643), THRESHOLD)).to.equal(
+				true
+			)
+		end)
+
+		it("does not see the doll just outside the cone (~70deg)", function()
+			expect(EnemyService._isLookedAt(forward, Vector3.new(0.940, 0, -0.342), THRESHOLD)).to.equal(
+				false
+			)
+		end)
+	end)
 end

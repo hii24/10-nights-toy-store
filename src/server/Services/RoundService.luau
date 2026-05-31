@@ -83,6 +83,7 @@ end
 function RoundService:_runRound()
 	self._enemy:SetActive(false)
 	self._enemy:SetSoldierActive(false)
+	self._enemy:SetDollActive(false)
 	self:_setNight(0)
 	self:_setState(STATE_PREP)
 	self:_countdown(RoundConfig.prepDuration)
@@ -95,9 +96,11 @@ function RoundService:_runRound()
 		self:_setState(STATE_NIGHT)
 		self._enemy:SetActive(true)
 		self._enemy:SetSoldierActive(night >= EnemyConfig.soldierFirstNight)
+		self._enemy:SetDollActive(night >= EnemyConfig.dollFirstNight)
 		self:_nightCountdown(RoundConfig.nightDuration)
 		self._enemy:SetActive(false)
 		self._enemy:SetSoldierActive(false)
+		self._enemy:SetDollActive(false)
 
 		-- Исход ночи: пойман → Lost (терминально).
 		if self:_resolveOutcome() == STATE_LOST then
