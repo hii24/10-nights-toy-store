@@ -237,3 +237,23 @@
 - **Скоуп:** летальность/эффект куклы — позже; стан фонариком, реальный конус камеры — позже.
 - **Ветка:** `feat/p1-03-doll-blinker` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Враги MVP готовы (3/3).** **Следующее:** `P1-04` (repair дверей: hold-to-repair, серверный счёт, rate-limit).
+
+---
+
+## [P1-04 — passes:true] Repair дверей (hold-to-repair, серверный счёт прогресса, анти-мгновенно) — 2026-05-31
+Первая «защитная» механика для игроков. Новый `DoorService` по образцу `GeneratorService`.
+- **Сделано:**
+  - `DoorConfig` (НОВЫЙ): 2 двери `(±18,0,8)`, размеры/цвета (intact зелёный / broken красный), `repairDuration=4`, `holdTolerance=1.0`, `prompt.holdDuration=60`.
+  - `DoorService` (НОВЫЙ): `_buildDoors` (Part+ProximityPrompt, prompt off), `_setBroken` (атрибут `Broken`+цвет+prompt.Enabled), `_breakAll`/`_resetAll`, hold-репэйр (`PromptButtonHoldBegan`→старт, `_updateProgress` Heartbeat считает+завершает, `PromptButtonHoldEnded`→сброс при раннем релизе), чистый `_isHoldValid`. Слушает `Workspace.RoundState` → на Night ломает двери, иначе восстанавливает (decoupled, без правок RoundService). Авто-регистрация через `Bootstrap.AddServices(folder)`.
+  - `tests/DoorService.spec` (НОВЫЙ): 4 юнита `_isHoldValid` (анти-мгновенно).
+- **Серверная авторитетность (docs/02):** сервер сам копит прогресс по РЕАЛЬНОМУ времени удержания (`os.clock()` от HoldBegan) и завершает при `elapsed >= repairDuration`. НЕ зависит от `prompt.Triggered`. Клиент не может доделать быстрее `repairDuration`. Бродкаст `RepairProgress` (для HUD/проверки).
+- **End-to-end в Studio (execute_luau КЛИЕНТСКИЙ → телепорт игрока + `prompt:InputHoldBegin/End`):**
+  - На Night: дверь `Broken=true`, `prompt.Enabled=true` ✓.
+  - **Успех:** игрок к стене-стороне двери (7 студов от пути медведя — безопасно), `InputHoldBegin` → `RepairProgress 0→1.00` (сервер считал) → `Broken=false` (починена сервером на 4с) ✓.
+  - **Анти-мгновенно:** `InputHoldBegin`→`InputHoldEnd` через 1.3с (< 4с) → `progMid=0.32`→`0.00` (сброс), `Broken=true` (НЕ доделать быстро) ✓.
+  - Консоль без ошибок.
+- **🔑 Грабли (новое):** программный `prompt:InputHoldBegin()` **НЕ вызывает `Triggered`** как реальный ввод (на HoldDuration срабатывает `HoldEnded` вместо/раньше `Triggered`, сбрасывая прогресс). Поэтому завершение через `Triggered` не годилось — переделал на server-accumulate (сервер сам завершает по накопленному прогрессу, `prompt.HoldDuration=60` чтоб промпт не авто-триггерил). Это и надёжнее против чита. Тест дверей: игрок безопасен от медведя на стене-стороне (x=±23, ≥7 студов от пути ±16; 6 студов не хватало — ловило между вызовами).
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓. **TestEZ: passed=31 failed=0** (27 + 4; без переоткрытия — DoorService новый, кэш старого валиден).
+- **Скоуп:** последствия сломанных дверей (враги сквозь/drain), прогрессивная поломка, HUD-бар (P1-07), персист частичного прогресса, непрерывность удержания против suppressed-HoldEnded — позже.
+- **Ветка:** `feat/p1-04-door-repair` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Следующее:** `P1-05` (Revive: пойманный → toy box, тиммейт освобождает).
