@@ -27,6 +27,27 @@ BatteryService._inventory = {} -- [Player]: number — сессионный сч
 BatteryService._batteries = {} -- [ProximityPrompt]: BasePart — реестр живых пикапов
 BatteryService._lastPickup = {} -- [Player]: number — для rate-limit
 
+-- Единая точка записи счётчика: инвентарь + реплицируемый атрибут.
+function BatteryService:_setCount(player: Player, count: number)
+	self._inventory[player] = count
+	player:SetAttribute(ATTR_BATTERIES, count)
+end
+
+-- Публичный API для других сервисов (напр. GeneratorService).
+function BatteryService:GetCount(player: Player): number
+	return self._inventory[player] or 0
+end
+
+-- Списать `amount` батареек, если хватает. true — списано; false — недостаточно.
+function BatteryService:TryConsume(player: Player, amount: number): boolean
+	local count = self:GetCount(player)
+	if amount <= 0 or count < amount then
+		return false
+	end
+	self:_setCount(player, count - amount)
+	return true
+end
+
 function BatteryService:_tryPickup(prompt: ProximityPrompt, player: Player)
 	-- 1) whitelist: промпт зарегистрирован и батарейка ещё существует
 	local battery = self._batteries[prompt]
@@ -56,9 +77,7 @@ function BatteryService:_tryPickup(prompt: ProximityPrompt, player: Player)
 	self._batteries[prompt] = nil
 	battery:Destroy()
 
-	local count = (self._inventory[player] or 0) + 1
-	self._inventory[player] = count
-	player:SetAttribute(ATTR_BATTERIES, count)
+	self:_setCount(player, self:GetCount(player) + 1)
 	-- TODO(P1-09): аналитика first_battery_picked
 end
 

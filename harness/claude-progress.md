@@ -70,3 +70,17 @@
   - `fireproximityprompt` недоступен в sandbox `execute_luau` (контекст клиента) — триггерю через `InputHoldBegin/End` + телепорт в радиус.
   - Адверсариальные спеки (мусор → отказ) — в `P0-09` (TestEZ).
 - **Коммит:** см. `git log` (P0-04).
+
+---
+
+## [P0-05] Вставка батарейки в генератор (GeneratorService, межсервисно) — 2026-05-31
+- **Сделано:**
+  - 2-й Knit-сервис `src/server/Services/GeneratorService.luau` + `src/shared/Config/GeneratorConfig.luau` (data-driven: позиция/размер/цвет, power-модель start=0 / perBattery=20 / max=100).
+  - **Первый межсервисный вызов Knit:** GeneratorService (`KnitInit` → `Knit.GetService`) тратит батарейку через новый публичный API `BatteryService:GetCount/TryConsume` (+ хелпер `_setCount`; поведение подбора не изменилось).
+  - Вставка через ProximityPrompt: валидация `docs/02` ДО мутации — жив / генератор не полон / есть батарейка / rate-limit. Питание серверно: `self._power`, зеркало в `Generator.Power/MaxPower` + глобально `Workspace.GeneratorPower` (не стримится — задел для P0-06 свет / P0-07 враг / HUD).
+  - Локально: StyLua + **Selene 0/0/0** + `rojo build` ✓. Синк Rojo (`127.0.0.1`).
+  - **End-to-end плейтест (MCP):** генератор `Power 0/100`; подбор `B 0→1` → вставка `Power 0→20` + `B 1→0` (межсервисное списание); вставка без батарейки → `Power 20→20` (отвергнута). Server-authoritative.
+  - `P0-05` → `passes:true`.
+- **Следующее:** `P0-06` — свет мигает при низком питании (клиентский визуал от серверного `Workspace.GeneratorPower`; первый клиентский контроллер).
+- **Известные проблемы:** те же (`StreamingEnabled` мерцает части в клиентском `execute_luau` — опора на глобальные/реплицируемые атрибуты; адверсариальные TestEZ-спеки — `P0-09`).
+- **Коммит:** см. `git log` (P0-05).
