@@ -93,6 +93,13 @@ function RoundService:_awardSurvivors(coins: number, xp: number)
 	end
 end
 
+-- Хук воронки (P1-09): шаг для всех игроков в матче. Дедуп (раз-на-игрока) — внутри AnalyticsService.
+function RoundService:_logFunnelAll(stepName: string)
+	for _, player in Players:GetPlayers() do
+		self._analytics:LogFunnelStep(player, stepName)
+	end
+end
+
 function RoundService:_runRound()
 	self._enemy:SetActive(false)
 	self._enemy:SetSoldierActive(false)
@@ -106,6 +113,9 @@ function RoundService:_runRound()
 
 		-- Night: враг активен, таймер выживания.
 		self:_setState(STATE_NIGHT)
+		if night == 2 then
+			self:_logFunnelAll("second_night_started") -- воронка (P1-09)
+		end
 		self._enemy:SetActive(true)
 		self._enemy:SetSoldierActive(night >= EnemyConfig.soldierFirstNight)
 		self._enemy:SetDollActive(night >= EnemyConfig.dollFirstNight)
@@ -124,6 +134,9 @@ function RoundService:_runRound()
 		self:_setState(STATE_MORNING)
 		self._revive:FreeAll()
 		self:_awardSurvivors(DataConfig.coinsPerNight, DataConfig.xpPerNight) -- выжил ночь → награда
+		if night == 1 then
+			self:_logFunnelAll("first_night_survived") -- воронка (P1-09)
+		end
 		self:_countdown(RoundConfig.morningDuration)
 
 		-- Между ночами — Upgrade (плейсхолдер; карточки → P1-06).
@@ -142,6 +155,7 @@ function RoundService:KnitInit()
 	self._enemy = Knit.GetService("EnemyService")
 	self._revive = Knit.GetService("ReviveService")
 	self._data = Knit.GetService("DataService")
+	self._analytics = Knit.GetService("AnalyticsService")
 end
 
 function RoundService:KnitStart()

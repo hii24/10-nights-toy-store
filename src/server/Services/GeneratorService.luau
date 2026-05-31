@@ -91,6 +91,7 @@ function GeneratorService:_tryInsert(player: Player)
 	self._lastInsert[player] = now
 	self._power = math.min(GeneratorConfig.maxPower, self._power + GeneratorConfig.powerPerBattery)
 	self:_applyPower()
+	self._analytics:LogFunnelStep(player, "battery_inserted_generator") -- воронка (P1-09); дедуп → «first»
 end
 
 function GeneratorService:_build()
@@ -125,6 +126,7 @@ end
 
 function GeneratorService:KnitInit()
 	self._batteryService = Knit.GetService("BatteryService")
+	self._analytics = Knit.GetService("AnalyticsService")
 end
 
 function GeneratorService:KnitStart()

@@ -329,3 +329,45 @@
 - **Публикация плейса разблокировала отложенное:** `P0-10` (Open Cloud CI — TestEZ на пуше) и `P1-11` (Mantle deploy).
 - **Ветка:** `feat/p1-08-profilestore` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Фаза 1: 8/11.** **Следующее:** `P1-09` (воронка аналитики, серверно: `player_joined … second_night_started`).
+
+---
+
+## [P1-09 — passes:true] Воронка аналитики (AnalyticsService, серверно) — 2026-05-31
+Первая **аналитика**: серверная воронка первой сессии из 6 шагов (где отваливаются в первой минуте).
+Бэкенд — встроенный Roblox `AnalyticsService:LogFunnelStepEvent` (плейс опубликован → данные летят в Dashboard).
+- **Сделано:**
+  - `src/shared/Config/AnalyticsConfig` (НОВЫЙ): `funnelName="first_session"`, `steps` (6 по порядку:
+    player_joined → first_battery_picked → battery_inserted_generator → first_night_survived →
+    upgrade_selected → second_night_started), предвычисленный `stepIndex` (name→1..6).
+  - `src/server/Services/AnalyticsService` (НОВЫЙ, Knit): `LogFunnelStep(player, step)` → дедуп
+    (`_fired[player]`) → `LogFunnelStepEvent(player, funnelName, sessionId, idx, step)` в `pcall` →
+    Studio-only зеркало в атрибут `FunnelFired` (csv) → print. `player_joined` на PlayerAdded +
+    early-joiners; cleanup на PlayerRemoving. Чистые `_stepIndex`/`_shouldFire`. `sessionId` =
+    `HttpService:GenerateGUID`. **Без RemoteEvent, без мутации экономики** — логирование ПОСЛЕ валидации.
+  - Хуки (по одной строке в проверенной success-точке, ref через `Knit.GetService` в KnitInit):
+    `BatteryService` (after `_setCount`) → first_battery_picked; `GeneratorService` (after `_applyPower`)
+    → battery_inserted_generator; `RoundService` (`_logFunnelAll`: night==1 Morning → first_night_survived;
+    night==2 Night → second_night_started); `UpgradeService` (after `_applyToCharacter`) → upgrade_selected.
+  - `tests/AnalyticsService.spec` (НОВЫЙ): `_stepIndex` (known/unknown), `_shouldFire` (fresh/already/unknown),
+    порядок+кол-во шагов.
+- **Семантика «first_*»** — из дедупа (хук зовётся на каждом успехе, фиксируется первый).
+- **End-to-end (мост, читаю `player.FunnelFired`; врем. prep/upgrade бамп для окон, возвращены 5/8):**
+  Полный матч (выжил 3 ночи → EndMatch). Воронка = `[player_joined, first_night_survived,
+  upgrade_selected, second_night_started]` — **4/6 шагов вживую**, порядок верный, **0 дублей**
+  (дедуп держится через весь матч), **0 спурьёзных** шагов. `upgrade_selected` сработал в лок-степе с
+  реально применённым множителем (WalkSpeed 16→18.4) — хук точен. `player_joined` ✓ на join.
+- **🔸 НЕЗАКРЫТЫЙ ХВОСТ (инструментальный, как P1-05/06):** `first_battery_picked` /
+  `battery_inserted_generator` НЕ прогнаны вживую — оба «реальных» триггера ProximityPrompt из моста
+  недоступны (`fireproximityprompt`=nil в клиентском контексте; `user_keyboard_input` E не доходит до
+  промпта). Покрытие: пути подбора/вставки доказаны e2e (P0-04/P0-06), хук = одна строка в проверенной
+  success-точке, `LogFunnelStep`/дедуп — юнит-тест, механизм воронки доказан вживую на 4 шагах.
+  Рекомендуемая ручная проверка: войти, поднять батарейку (E), вставить в генератор (E) → в Dashboard
+  funnel `first_session` шаги 2–3.
+- **Review:** mandatory-триггеры не задеты (нет remote → security; нет persist-данных → data-engineer;
+  нет визуала → performance). Самопроверка: хуки после валидации/мутации, pcall вокруг бэкенда, дедуп
+  корректен, спеки прежние не сломаны.
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓. **TestEZ: passed=51 failed=0**
+  (45 + 6 AnalyticsService.spec; 9 spec-файлов).
+- **Ветка:** `feat/p1-09-analytics` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Фаза 1: 9/11.** **Следующее:** `P1-10` (security-ревью всей Фазы 1) или разблокированные `P0-10`
+  (TestEZ в CI через Open Cloud) / `P1-11` (Mantle deploy).
