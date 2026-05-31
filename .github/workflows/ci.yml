@@ -32,12 +32,13 @@ jobs:
       - name: Build (Rojo)
         run: rojo build --output game.rbxlx
 
-      - name: Tests (deferred to P0-10)
+      - name: Tests (TestEZ via Open Cloud)
         env:
           OPEN_CLOUD_API_KEY: ${{ secrets.OPEN_CLOUD_API_KEY }}
         run: |
-          if [ -z "$OPEN_CLOUD_API_KEY" ] || [ ! -f scripts/run-tests.luau ]; then
-            echo "::notice::TestEZ via Open Cloud deferred to P0-10 (no key or runner yet). Skipping."
+          if [ -z "$OPEN_CLOUD_API_KEY" ]; then
+            echo "::notice::No OPEN_CLOUD_API_KEY (fork/external PR) — skipping engine TestEZ run."
             exit 0
           fi
+          rojo build --output game.rbxl
           lune run scripts/run-tests
