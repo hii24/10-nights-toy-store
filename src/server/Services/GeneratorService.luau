@@ -18,6 +18,7 @@ local GENERATOR_NAME = "Generator"
 local ATTR_POWER = "Power"
 local ATTR_MAXPOWER = "MaxPower"
 local ATTR_GLOBAL_POWER = "GeneratorPower" -- глобально на Workspace (для света/врага/HUD)
+local ATTR_GLOBAL_POWERED = "GeneratorPowered" -- bool: power >= порог (свет/враг читают)
 local INSERT_COOLDOWN = 0.25 -- rate-limit на игрока, сек
 
 local GeneratorService = Knit.CreateService({
@@ -36,6 +37,20 @@ function GeneratorService:_applyPower()
 		gen:SetAttribute(ATTR_MAXPOWER, GeneratorConfig.maxPower)
 	end
 	Workspace:SetAttribute(ATTR_GLOBAL_POWER, self._power)
+	Workspace:SetAttribute(ATTR_GLOBAL_POWERED, self._power >= GeneratorConfig.poweredThreshold)
+end
+
+-- Слабый серверный drain: питание падает со временем (давление подкидывать батарейки).
+function GeneratorService:_startDrain()
+	task.spawn(function()
+		while true do
+			task.wait(GeneratorConfig.drainInterval)
+			if self._power > 0 then
+				self._power = math.max(0, self._power - GeneratorConfig.drainAmount)
+				self:_applyPower()
+			end
+		end
+	end)
 end
 
 function GeneratorService:_tryInsert(player: Player)
@@ -115,6 +130,7 @@ end
 function GeneratorService:KnitStart()
 	self:_build()
 	self:_applyPower()
+	self:_startDrain()
 
 	Players.PlayerRemoving:Connect(function(player)
 		self._lastInsert[player] = nil

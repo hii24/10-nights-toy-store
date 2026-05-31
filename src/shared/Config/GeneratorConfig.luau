@@ -19,6 +19,10 @@ local GeneratorConfig = {
 	startPower = 0,
 	powerPerBattery = 20,
 	maxPower = 100,
+	-- P0-06: порог «запитан» и серверный drain питания.
+	poweredThreshold = 30,
+	drainInterval = 1, -- сек между тиками drain
+	drainAmount = 4, -- сколько power снимается за тик
 }
 
 return GeneratorConfig

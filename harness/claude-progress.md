@@ -84,3 +84,16 @@
 - **Следующее:** `P0-06` — свет мигает при низком питании (клиентский визуал от серверного `Workspace.GeneratorPower`; первый клиентский контроллер).
 - **Известные проблемы:** те же (`StreamingEnabled` мерцает части в клиентском `execute_luau` — опора на глобальные/реплицируемые атрибуты; адверсариальные TestEZ-спеки — `P0-09`).
 - **Коммит:** см. `git log` (P0-05).
+
+---
+
+## [P0-06] Свет мигает при низком питании (первый клиентский визуал) — 2026-05-31
+- **Сделано:**
+  - **Сервер:** `GeneratorService._applyPower` выводит `Workspace.GeneratorPowered` (`power >= poweredThreshold=30`); добавлен слабый **drain** (4 power/тик, `task.spawn`-петля по `drainInterval=1с`). `GeneratorConfig`: poweredThreshold/drainInterval/drainAmount.
+  - **Клиент (первый!):** `src/client/LightingController.client.luau` — плоский LocalScript: читает `Workspace.GeneratorPowered`, мигает глобальным `Lighting` когда не запитан (рандом Brightness/Ambient), ровно когда запитан; выставляет `Lighting.PowerFlickering`. Изменения Lighting локальны (не реплицируются) — пер-клиентский визуал.
+  - Локально: StyLua + **Selene 0/0/0** + `rojo build` ✓. Синк Rojo (`127.0.0.1`).
+  - **End-to-end плейтест (MCP, `execute_luau` в клиенте):** старт `power=0 → powered=false → flickering=true`; собрал 2 → вставил → `power=36 powered=true flickering=false` (ровно); **+3.5с drain → `power=24 powered=false flickering=true`** (мигание вернулось). Drain подтверждён (наблюдалось 56→0).
+  - `P0-06` → `passes:true`.
+- **Следующее:** `P0-07` — Mr. Bear: waypoint-патруль (серверно; скорость зависит от `GeneratorPowered`). `EnemyService` (3-й Knit-сервис).
+- **Известные проблемы:** прежние (`StreamingEnabled`, `get_console_output` срез, adversarial TestEZ — `P0-09`). Баланс drain/порога — грубый, тюнинг с ночным таймером `P0-08`.
+- **Коммит:** см. `git log` (P0-06).
