@@ -1,70 +1,95 @@
 --!strict
--- UpgradeUiController — мини-UI выбора апгрейда (НЕ Fusion — это P1-07). Показывает карты в
--- Upgrade-фазе; по клику шлёт SelectUpgrade (намерение). Истина — от сервера (применяет Humanoid).
+-- UpgradeUiController — Fusion-карточки выбора апгрейда (P1-07 поднял мини-UI из P1-06 до Fusion).
+-- Показ при RoundState==Upgrade; по клику шлёт SelectUpgrade (намерение). Истина — сервер (P1-06).
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Packages = ReplicatedStorage:WaitForChild("Packages")
+local Fusion = require(Packages:WaitForChild("Fusion"))
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local UpgradeConfig = require(Config:WaitForChild("UpgradeConfig"))
 local Net = require(Shared:WaitForChild("Net"):WaitForChild("Net"))
 
-local ATTR_STATE = "RoundState"
+local Children = Fusion.Children
+local OnEvent = Fusion.OnEvent
+local peek = Fusion.peek
+
 local STATE_UPGRADE = "Upgrade"
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local selectUpgrade = Net.get("SelectUpgrade")
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "UpgradeUi"
-gui.ResetOnSpawn = false
-gui.Enabled = false
+local scope = Fusion.scoped(Fusion)
 
-local holder = Instance.new("Frame")
-holder.Size = UDim2.fromScale(0.6, 0.22)
-holder.Position = UDim2.fromScale(0.2, 0.62)
-holder.BackgroundTransparency = 1
-holder.Parent = gui
-
-local layout = Instance.new("UIListLayout")
-layout.FillDirection = Enum.FillDirection.Horizontal
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-layout.VerticalAlignment = Enum.VerticalAlignment.Center
-layout.Padding = UDim.new(0.02, 0)
-layout.Parent = holder
-
-local chosenThisPhase = false
-
-for _, card in UpgradeConfig.cards do
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.fromScale(0.3, 1)
-	btn.BackgroundColor3 = Color3.fromRGB(40, 44, 60)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextScaled = true
-	btn.Text = `{card.name}\n{card.desc}`
-	btn.Parent = holder
-	btn.Activated:Connect(function()
-		if chosenThisPhase then
-			return
-		end
-		chosenThisPhase = true
-		selectUpgrade:FireServer(card.id)
-		gui.Enabled = false
-	end)
-end
-
-local function render()
-	local isUpgrade = Workspace:GetAttribute(ATTR_STATE) == STATE_UPGRADE
-	if isUpgrade then
-		chosenThisPhase = false -- новая фаза → снова можно выбрать
+local roundState = scope:Value(Workspace:GetAttribute("RoundState"))
+local chosenThisPhase = scope:Value(false)
+Workspace:GetAttributeChangedSignal("RoundState"):Connect(function()
+	local state = Workspace:GetAttribute("RoundState")
+	roundState:set(state)
+	if state == STATE_UPGRADE then
+		chosenThisPhase:set(false) -- новая фаза → снова можно выбрать
 	end
-	gui.Enabled = isUpgrade and not chosenThisPhase
+end)
+
+local function card(def: any): any
+	return scope:New("TextButton")({
+		Name = def.id,
+		Size = UDim2.fromScale(0.3, 1),
+		BackgroundColor3 = Color3.fromRGB(40, 44, 60),
+		BackgroundTransparency = 0.1,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Font = Enum.Font.GothamBold,
+		TextScaled = true,
+		TextStrokeTransparency = 0.4, -- контраст на светлом фоне (мобильно)
+		Text = `{def.name}\n{def.desc}`,
+		[OnEvent("Activated")] = function()
+			if peek(chosenThisPhase) then
+				return
+			end
+			chosenThisPhase:set(true)
+			selectUpgrade:FireServer(def.id)
+		end,
+		[Children] = {
+			scope:New("UICorner")({ CornerRadius = UDim.new(0, 8) }),
+			scope:New("UISizeConstraint")({ MinSize = Vector2.new(90, 50) }), -- тапабельно на телефоне
+		},
+	})
 end
 
-gui.Parent = playerGui
-Workspace:GetAttributeChangedSignal(ATTR_STATE):Connect(render)
-render()
+local cardButtons = {}
+for _, def in UpgradeConfig.cards do
+	table.insert(cardButtons, card(def))
+end
+
+scope:New("ScreenGui")({
+	Name = "UpgradeUi",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = false, -- safe zones; выровнено с HUD/RoundUi (P1-07)
+	Enabled = scope:Computed(function(use)
+		return use(roundState) == STATE_UPGRADE and not use(chosenThisPhase)
+	end),
+	Parent = playerGui,
+	[Children] = {
+		scope:New("Frame")({
+			Name = "Cards",
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.fromScale(0.5, 0.74),
+			Size = UDim2.fromScale(0.62, 0.2),
+			BackgroundTransparency = 1,
+			[Children] = {
+				scope:New("UIListLayout")({
+					FillDirection = Enum.FillDirection.Horizontal,
+					HorizontalAlignment = Enum.HorizontalAlignment.Center,
+					VerticalAlignment = Enum.VerticalAlignment.Center,
+					Padding = UDim.new(0.02, 0),
+				}),
+				table.unpack(cardButtons),
+			},
+		}),
+	},
+})
