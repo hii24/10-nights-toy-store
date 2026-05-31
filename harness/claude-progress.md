@@ -257,3 +257,21 @@
 - **Скоуп:** последствия сломанных дверей (враги сквозь/drain), прогрессивная поломка, HUD-бар (P1-07), персист частичного прогресса, непрерывность удержания против suppressed-HoldEnded — позже.
 - **Ветка:** `feat/p1-04-door-repair` → мёрдж в `dev`. Коммит — см. `git log`.
 - **Следующее:** `P1-05` (Revive: пойманный → toy box, тиммейт освобождает).
+
+---
+
+## [P1-05 — passes:true] Revive / Toy Box (пойманный → коробка; тиммейт освобождает) — 2026-05-31
+Кооп-механика второго шанса: поимка медведем больше НЕ мгновенный Lost. Новый `ReviveService`.
+- **Сделано:**
+  - `ReviveConfig` (НОВЫЙ): toy box `(-20,0,20)`, клетка (cageOffset), `freeDuration=2`, prompt holdDuration=60.
+  - `ReviveService` (НОВЫЙ): `Capture` (флаг InToyBox + `_cageNow`: анкор HRP + телепорт в клетку), `_release`/`FreeAll` (разанкор + телепорт к спавну), `AreAllBoxed`/`_isWipe`, `_canRescue` (жив + НЕ в коробке), server-accumulate hold открытия коробки (как DoorService) → FreeAll, бродкаст `BoxedCount`/`InToyBox`. Авто-регистрация.
+  - `RoundService` (ИЗМЕНЁН): caught-колбэк → `_onCaught` → `_revive:Capture` (только в Night); `_nightCountdown`/`_resolveOutcome` по `AreAllBoxed` (wipe); Morning → `FreeAll`; убрано поле `_caught`.
+  - `tests/RoundService.spec` ОБНОВЛЁН (стаб `_revive`: Capture-spy + AreAllBoxed; 5 тестов). `tests/ReviveService.spec` НОВЫЙ (`_isWipe`, 4).
+- **Серверная авторитетность (docs/02):** capture/free/«пойман ли»/позиция — серверно; нет RemoteEvent-поверхности (ProximityPrompt + атрибуты); free валидирует холдера ДО мутации; анкор держит против клиентского владения.
+- **End-to-end в Studio (solo, через мост):** Capture → `InToyBox=true`, `HRP.Anchored=true`, точно в клетке (distToBox=5.0), `BoxedCount=1` ✓; Wipe→Lost (1 игрок = все в коробках) ✓; отказ самоспасения (пойманный держал промпт 3с → не вышел) ✓.
+- **Security-review: PASS** (нет CRIT/HIGH; всё серверно, валидация до мутации, мгновенно не доделать). **Закрыл MED-1** (escape через респаун → false-Lost) и **MED-2** (потеря поимки на гонке HRP) → re-cage на `CharacterAdded` + флаг ставится всегда. LOW-1 (нет recheck дистанции в hold — идентично DoorService), LOW-2/3 — отложены.
+- **Локально:** StyLua src+tests ✓, **Selene src 0/0/0** ✓, `rojo build` ✓. **TestEZ: passed=35 failed=0** (31 + 4 `_isWipe`; RoundService.spec переписан под стаб).
+- **🔸 НЕЗАКРЫТЫЙ ХВОСТ (для будущей проверки):** живой **2-player positive-free** («не-пойманный держит коробку → пойманный возвращается») НЕ прогнан end-to-end — заблокирован инструментами (computer-use отключился, Studio-мост клиентский → серверный FreeAll не вызвать, multi-client Studio UI не настроился у юзера). Логика подтверждена: release = зеркало проверенного capture; hold-открытие = доказанный паттерн дверей (P1-04); accept-ветка `_canRescue` = инверсия проверенной reject-ветки; security-review прошёл. **Рекомендуемая ручная проверка:** Studio Test → F7 «Server and Clients» → «Add Clients» (2 игрока): один попадается → в коробку, второй держит «Free teammates» → первый возвращается, матч жив. `passes:true` поставлен по решению юзера на этом покрытии.
+- **Скоуп-хвосты на потом:** LOW-1 distance-recheck (вместе с DoorService), исключение бокснутых из таргетинга врагов, наказание за повторную поимку, HUD-коробки (P1-07).
+- **Ветка:** `feat/p1-05-revive` → мёрдж в `dev`. Коммит — см. `git log`.
+- **Следующее:** `P1-06` (сессионные апгрейды после ночи — выбор карточки; Upgrade-фаза из P1-01 = плейсхолдер).

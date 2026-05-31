@@ -1,6 +1,6 @@
 --!strict
 -- RoundService — серверная стейт-машина матча (Фаза 1: 3 ночи) — ядро.
--- Preparation → [Night N → Morning → Upgrade] ×3 → EndMatch; пойман в ночь → Lost.
+-- Preparation → [Night N → Morning → Upgrade] ×3 → EndMatch; wipe (все в toy box) → Lost.
 -- Гейтит EnemyService; бродкаст RoundState/RoundTimeLeft/RoundNight в Workspace для клиента.
 
 local Workspace = game:GetService("Workspace")
@@ -30,8 +30,7 @@ local RoundService = Knit.CreateService({
 })
 
 RoundService._state = STATE_PREP
-RoundService._caught = false
--- _enemy задаётся в KnitInit().
+-- _enemy / _revive задаются в KnitInit().
 
 function RoundService:_setState(state: string)
 	self._state = state
@@ -46,16 +45,16 @@ function RoundService:_setNight(night: number)
 	Workspace:SetAttribute(ATTR_NIGHT, night)
 end
 
-function RoundService:_onCaught(_player: Player)
-	-- Засчитываем только во время ночи (идемпотентно).
+function RoundService:_onCaught(player: Player)
+	-- Поимка только в ночь → игрок в toy box (НЕ мгновенный Lost; revive — P1-05).
 	if self._state == STATE_NIGHT then
-		self._caught = true
+		self._revive:Capture(player)
 	end
 end
 
--- Исход ночи (чистая логика, тестируемо): пойман → Lost, выжил → Morning.
+-- Исход ночи: wipe (все игроки в коробках) → Lost, иначе → Morning.
 function RoundService:_resolveOutcome(): string
-	return if self._caught then STATE_LOST else STATE_MORNING
+	return if self._revive:AreAllBoxed() then STATE_LOST else STATE_MORNING
 end
 
 -- Обратный отсчёт фазы с бродкастом RoundTimeLeft.
@@ -69,10 +68,10 @@ function RoundService:_countdown(duration: number)
 	self:_setTime(0)
 end
 
--- Ночной отсчёт: выходит досрочно, если игрока поймали.
+-- Ночной отсчёт: выходит досрочно при wipe (все игроки в коробках).
 function RoundService:_nightCountdown(duration: number)
 	local t = duration
-	while t > 0 and not self._caught do
+	while t > 0 and not self._revive:AreAllBoxed() do
 		self:_setTime(t)
 		task.wait(RoundConfig.tickInterval)
 		t -= RoundConfig.tickInterval
@@ -92,7 +91,6 @@ function RoundService:_runRound()
 		self:_setNight(night)
 
 		-- Night: враг активен, таймер выживания.
-		self._caught = false
 		self:_setState(STATE_NIGHT)
 		self._enemy:SetActive(true)
 		self._enemy:SetSoldierActive(night >= EnemyConfig.soldierFirstNight)
@@ -108,8 +106,9 @@ function RoundService:_runRound()
 			return
 		end
 
-		-- Пережил ночь → Morning.
+		-- Пережил ночь → Morning (освобождаем всех из коробок — чистый старт).
 		self:_setState(STATE_MORNING)
+		self._revive:FreeAll()
 		self:_countdown(RoundConfig.morningDuration)
 
 		-- Между ночами — Upgrade (плейсхолдер; карточки → P1-06).
@@ -125,6 +124,7 @@ end
 
 function RoundService:KnitInit()
 	self._enemy = Knit.GetService("EnemyService")
+	self._revive = Knit.GetService("ReviveService")
 end
 
 function RoundService:KnitStart()
