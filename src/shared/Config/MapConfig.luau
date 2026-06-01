@@ -3,15 +3,16 @@
 -- Геометрию/цвет менять здесь, не трогая GrayboxBuilder.
 
 local MapConfig = {
-	-- Компактный прямоугольный зал (X * Z), толщина пола = Y.
-	floorSize = Vector3.new(48, 1, 48),
-	wallHeight = 12,
+	-- Большой спроектированный зал магазина (X * Z), толщина пола = Y. Высокий потолок (анти-клаустрофобия).
+	floorSize = Vector3.new(110, 1, 110),
+	wallHeight = 28,
 	wallThickness = 1,
 	-- Серый stylized-plastic для graybox.
 	color = Color3.fromRGB(160, 160, 160),
 	material = Enum.Material.SmoothPlastic,
-	-- Размер SpawnLocation (ставится в центр зала на полу).
-	spawnSize = Vector3.new(6, 1, 6),
+	-- SpawnLocation: у ВХОДА (фронт, +Z) — игроки стартуют от входа, идут вглубь магазина.
+	spawnSize = Vector3.new(8, 1, 8),
+	spawnPosition = Vector3.new(0, 0, 46),
 }
 
 return MapConfig

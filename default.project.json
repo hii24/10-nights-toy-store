@@ -5,6 +5,7 @@
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "Shared": { "$path": "src/shared" },
+      "Assets": { "$path": "src/assets" },
       "Packages": { "$path": "Packages" },
       "DevPackages": { "$path": "DevPackages" }
     },

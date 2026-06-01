@@ -311,67 +311,24 @@ local modules: { [string]: Module } = {
 
 -- Геймплей-точки (держать чистыми; синхронно с Battery/Generator/Door/Revive-конфигами).
 local gameplayPoints: { Vector3 } = {
-	Vector3.new(0, 0, -18), -- generator
-	Vector3.new(-20, 0, 20), -- toy box
-	Vector3.new(-18, 0, 8), -- door L
-	Vector3.new(18, 0, 8), -- door R
-	Vector3.new(10, 0, 10), -- batteries…
-	Vector3.new(-12, 0, 8),
-	Vector3.new(6, 0, -14),
-	Vector3.new(-9, 0, -10),
-	Vector3.new(0, 0, 16),
-	Vector3.new(0, 0, 0), -- spawn
+	Vector3.new(0, 0, -6), -- generator (центр-плаза)
+	Vector3.new(-44, 0, -44), -- toy box (подсобка, дальний угол)
+	Vector3.new(0, 0, 16), -- дверь: ворота перед плазой
+	Vector3.new(-22, 0, -24), -- дверь: вход в подсобку
+	Vector3.new(40, 0, 28), -- батарейки (разнос по зонам)…
+	Vector3.new(-40, 0, 24),
+	Vector3.new(32, 0, -36),
+	Vector3.new(-30, 0, -30),
+	Vector3.new(0, 0, 30),
+	Vector3.new(0, 0, 46), -- spawn (вход, фронт)
 }
 local clearanceRadius = 5 -- floor-модули не ближе этого (XZ) к геймплей-точкам
-
--- Раскладка магазина. Floor — у стен/в чистых зонах (проверяется isClearOf); wall — на высоте; ceiling — сетка.
-local layout: { Placement } = {
-	-- Полки вдоль +X стены (x≈21), обходя дверь (18,8) и батарейку (10,10).
-	{ module = "shelf", position = Vector3.new(21, 0, -20), rotationY = 90 },
-	{ module = "shelf", position = Vector3.new(21, 0, -12), rotationY = 90 },
-	{ module = "shelf", position = Vector3.new(21, 0, 0), rotationY = 90 },
-	{ module = "shelf", position = Vector3.new(21, 0, 18), rotationY = 90 },
-	-- Полки вдоль -X стены (x≈-21), обходя toybox (-20,20) и дверь (-18,8).
-	{ module = "shelf", position = Vector3.new(-21, 0, -20), rotationY = 90 },
-	{ module = "shelf", position = Vector3.new(-21, 0, -10), rotationY = 90 },
-	{ module = "shelf", position = Vector3.new(-21, 0, 0), rotationY = 90 },
-	-- Полки вдоль -Z стены (z≈-21), обходя generator (0,-18) и батарейки.
-	{ module = "shelf", position = Vector3.new(-16, 0, -22), rotationY = 0 },
-	{ module = "shelf", position = Vector3.new(16, 0, -22), rotationY = 0 },
-	-- Полки вдоль +Z стены (z≈21), обходя батарейку (0,16).
-	{ module = "shelf", position = Vector3.new(-8, 0, 22), rotationY = 0 },
-	{ module = "shelf", position = Vector3.new(8, 0, 22), rotationY = 0 },
-	-- Касса + аппарат (угол +X/+Z, чисто).
-	{ module = "counter", position = Vector3.new(20, 0, 21), rotationY = 0 },
-	{ module = "register", position = Vector3.new(20, 0, 21), rotationY = 0 },
-	-- Стеллажи-рамы (интерьер, чистые зоны).
-	{ module = "rack", position = Vector3.new(13, 0, -8), rotationY = 0 },
-	{ module = "rack", position = Vector3.new(-13, 0, 14), rotationY = 0 },
-	-- Ящики/коробки (чистые зоны).
-	{ module = "crate", position = Vector3.new(14, 0, 18), rotationY = 0 },
-	{ module = "crate", position = Vector3.new(-15, 0, -16), rotationY = 20 },
-	{ module = "box", position = Vector3.new(-15, 0, -13), rotationY = -15 },
-	{ module = "box", position = Vector3.new(13, 0, 20), rotationY = 10 },
-	-- Стены: вент, камеры, вывеска (mount=wall, на высоте — не блокируют пол).
-	{ module = "vent", position = Vector3.new(-23.4, 9, -6), rotationY = -90 },
-	{ module = "vent", position = Vector3.new(23.4, 9, 6), rotationY = 90 },
-	{ module = "camera", position = Vector3.new(22, 9, -22), rotationY = 225 },
-	{ module = "camera", position = Vector3.new(-22, 9, -22), rotationY = 135 },
-	{ module = "neonSign", position = Vector3.new(0, 9, -23.5), rotationY = 0 },
-	-- Потолочные лампы (сетка, mount=ceiling).
-	{ module = "lamp", position = Vector3.new(-12, 0, -12), rotationY = 0 },
-	{ module = "lamp", position = Vector3.new(12, 0, -12), rotationY = 0 },
-	{ module = "lamp", position = Vector3.new(-12, 0, 12), rotationY = 0 },
-	{ module = "lamp", position = Vector3.new(12, 0, 12), rotationY = 0 },
-	{ module = "lamp", position = Vector3.new(0, 0, 0), rotationY = 0 },
-}
 
 local KitConfig = {
 	palette = palette,
 	materials = materials,
 	shell = shell,
 	modules = modules,
-	layout = layout,
 	gameplayPoints = gameplayPoints,
 	clearanceRadius = clearanceRadius,
 }
@@ -386,6 +343,114 @@ function KitConfig.isClearOf(pos: Vector3, points: { Vector3 }, radius: number):
 		end
 	end
 	return true
+end
+
+-- Строит СПРОЕКТИРОВАННЫЙ уровень-магазин (геймдизайн-проход) под зал ~110×110 (±55). Не «коробка с кольцом»,
+-- а survival-арена: вход/кассы (фронт) → чокпоинт-ворота → центр-плаза генератора (острова-укрытия) →
+-- квадрант-аислы (параллельные ряды = лейны/слепые углы) → подсобка (toy box) в дальнем углу. Floor-модули
+-- проходят isClearOf (обходят цели/двери/спавн); сетки (периметр/лампы) адаптивны, зон-позиции — тюнинг.
+function KitConfig.buildLayout(halfX: number, halfZ: number, wallHeight: number): { Placement }
+	local out: { Placement } = {}
+	local function addFloor(module: string, x: number, z: number, rotY: number)
+		if KitConfig.isClearOf(Vector3.new(x, 0, z), gameplayPoints, clearanceRadius) then
+			table.insert(
+				out,
+				{ module = module, position = Vector3.new(x, 0, z), rotationY = rotY }
+			)
+		end
+	end
+	local function add(module: string, x: number, y: number, z: number, rotY: number)
+		table.insert(out, { module = module, position = Vector3.new(x, y, z), rotationY = rotY })
+	end
+	-- Ряд однотипных floor-модулей вдоль вектора (аисл-сторона / стена-департамент / стена-подсобки).
+	local function row(
+		module: string,
+		x0: number,
+		z0: number,
+		dx: number,
+		dz: number,
+		count: number,
+		rotY: number
+	)
+		for i = 0, count - 1 do
+			addFloor(module, x0 + dx * i, z0 + dz * i, rotY)
+		end
+	end
+
+	-- === ПЕРИМЕТР-ДЕПАРТАМЕНТЫ: полки вдоль 4 стен лицом внутрь. clearance авто-режет у целей/дверей/спавна. ===
+	local z = -(halfZ - 8)
+	while z <= halfZ - 8 do
+		addFloor("shelf", halfX - 3, z, 90)
+		addFloor("shelf", -(halfX - 3), z, 90)
+		z += 12
+	end
+	local x = -(halfX - 8)
+	while x <= halfX - 8 do
+		addFloor("shelf", x, halfZ - 3, 0)
+		addFloor("shelf", x, -(halfZ - 3), 0)
+		x += 12
+	end
+
+	-- === ВХОД/КАССЫ (фронт +Z): касса+аппарат по бокам; центр — входной коридор к спавну (0,0,~46). ===
+	for _, sx in { -30, -16, 16, 30 } do
+		addFloor("counter", sx, halfZ - 9, 0)
+		addFloor("register", sx, halfZ - 9, 0)
+	end
+
+	-- === ЧОКПОИНТ-СТЕНА перед плазой: полки поперёк z=16, проём в центре = дверь (0,0,16) («ворота»). ===
+	for _, sx in { -20, -14, -8, 8, 14, 20 } do
+		addFloor("shelf", sx, 16, 0)
+	end
+
+	-- === ЦЕНТР-ПЛАЗА генератора (0,0,-6): кольцо островов-укрытий (r≈12) + спилл-коробки (r≈16), лейны между. ===
+	local gx, gz = 0, -6
+	for idx, deg in { 0, 60, 120, 180, 240, 300 } do
+		local rad = math.rad(deg)
+		local mod = if idx % 2 == 1 then "rack" else "crate"
+		addFloor(mod, gx + 12 * math.cos(rad), gz + 12 * math.sin(rad), deg)
+	end
+	for _, deg in { 30, 150, 270 } do
+		local rad = math.rad(deg)
+		addFloor("box", gx + 16 * math.cos(rad), gz + 16 * math.sin(rad), deg)
+	end
+
+	-- === КВАДРАНТ-АИСЛЫ: параллельные ряды (лейн между = слепые углы; охота медведя). rotY=90 → длинная ось Z. ===
+	for _, ax in { 24, 36 } do
+		row("shelf", ax, 24, 0, 7, 3, 90) -- правый-фронт (+X,+Z)
+		row("shelf", ax, -18, 0, -9, 4, 90) -- правый-бэк (+X,-Z)
+	end
+	for _, ax in { -24, -36 } do
+		row("shelf", ax, 24, 0, 7, 3, 90) -- левый-фронт (-X,+Z)
+	end
+	row("shelf", -36, -12, 0, -8, 2, 90) -- левый-бэк (короткий; ниже — подсобка)
+
+	-- === ПОДСОБКА (бэк-лево; toy box (-44,0,-44), вход-дверь (-22,0,-24)): Г-стена + склад-стеллажи. ===
+	row("shelf", -30, -26, -6, 0, 4, 0) -- фронт-стена подсобки (проём у двери)
+	row("shelf", -26, -32, 0, -6, 4, 90) -- боковая стена
+	addFloor("rack", -36, -44, 90)
+	addFloor("rack", -50, -34, 0)
+	addFloor("crate", -50, -50, 0)
+	addFloor("crate", -38, -52, 0)
+	addFloor("box", -50, -44, 0)
+
+	-- === ПОТОЛОК: сетка ламп + венты/камеры/неон-вывески (на высоте — пол свободен). ===
+	local lx = -(halfX - 10)
+	while lx <= halfX - 10 do
+		local lz = -(halfZ - 10)
+		while lz <= halfZ - 10 do
+			add("lamp", lx, 0, lz, 0)
+			lz += 22
+		end
+		lx += 22
+	end
+	add("vent", -(halfX - 0.6), wallHeight * 0.4, -12, -90)
+	add("vent", halfX - 0.6, wallHeight * 0.4, 12, 90)
+	add("camera", halfX - 2, wallHeight * 0.7, -(halfZ - 2), 225)
+	add("camera", -(halfX - 2), wallHeight * 0.7, -(halfZ - 2), 135)
+	add("neonSign", 0, wallHeight * 0.55, -(halfZ - 0.6), 0)
+	add("neonSign", 0, wallHeight * 0.55, halfZ - 0.6, 180)
+
+	return out
 end
 
 return KitConfig

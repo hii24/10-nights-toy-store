@@ -119,11 +119,12 @@ local function build(): Folder
 
 	buildShell(folder)
 
-	-- SpawnLocation в центре (сохранён из graybox).
+	-- SpawnLocation у входа (фронт) — MapConfig.spawnPosition.
 	local spawnPad = Instance.new("SpawnLocation")
 	spawnPad.Name = "SpawnLocation"
 	spawnPad.Size = MapConfig.spawnSize
-	spawnPad.CFrame = CFrame.new(0, MapConfig.spawnSize.Y / 2, 0)
+	local sp = MapConfig.spawnPosition or Vector3.new(0, 0, 0)
+	spawnPad.CFrame = CFrame.new(sp.X, MapConfig.spawnSize.Y / 2, sp.Z)
 	spawnPad.Anchored = true
 	spawnPad.Neutral = true
 	spawnPad.Color = colorOf("neutralLight")
@@ -136,9 +137,11 @@ local function build(): Folder
 		templates[name] = buildTemplate(name, module.parts)
 	end
 
-	-- Клоны по layout (инстансинг). Подпапки по типу модуля для читаемости Explorer.
+	-- Клоны по сгенерированной раскладке (адаптивно под размер комнаты). Подпапки по типу модуля.
+	local fs = MapConfig.floorSize
+	local layout = KitConfig.buildLayout(fs.X / 2, fs.Z / 2, MapConfig.wallHeight)
 	local groups: { [string]: Folder } = {}
-	for _, placement in KitConfig.layout do
+	for _, placement in layout do
 		local module = KitConfig.modules[placement.module]
 		local template = templates[placement.module]
 		if not module or not template then

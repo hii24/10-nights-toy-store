@@ -46,40 +46,41 @@ return function()
 		)
 	end)
 
-	describe("layout", function()
-		it(
-			"каждый плейсмент ссылается на известный модуль",
-			function()
-				for _, p in KitConfig.layout do
-					expect(KitConfig.modules[p.module]).to.be.ok()
-				end
-			end
-		)
+	describe(
+		"buildLayout (спроектированный уровень-магазин)",
+		function()
+			local layout = KitConfig.buildLayout(55, 55, 28) -- продакшн-размер (MapConfig 110×110×28)
 
-		it(
-			"floor-модули НЕ блокируют геймплей-точки (clearance)",
-			function()
-				for _, p in KitConfig.layout do
-					local module = KitConfig.modules[p.module]
-					if module and module.mount == "floor" then
-						local clear = KitConfig.isClearOf(
-							p.position,
-							KitConfig.gameplayPoints,
-							KitConfig.clearanceRadius
-						)
-						if not clear then
-							error(
-								("floor-плейсмент '%s' @ (%d,%d) блокирует геймплей-точку"):format(
-									p.module,
-									p.position.X,
-									p.position.Z
-								)
-							)
-						end
-						expect(clear).to.equal(true)
+			it("генерирует непустую раскладку", function()
+				expect(#layout > 0).to.equal(true)
+			end)
+
+			it(
+				"каждый плейсмент ссылается на известный модуль",
+				function()
+					for _, p in layout do
+						expect(KitConfig.modules[p.module]).to.be.ok()
 					end
 				end
-			end
-		)
-	end)
+			)
+
+			it(
+				"floor-модули НЕ блокируют геймплей-точки (clearance)",
+				function()
+					for _, p in layout do
+						local module = KitConfig.modules[p.module]
+						if module and module.mount == "floor" then
+							expect(
+								KitConfig.isClearOf(
+									p.position,
+									KitConfig.gameplayPoints,
+									KitConfig.clearanceRadius
+								)
+							).to.equal(true)
+						end
+					end
+				end
+			)
+		end
+	)
 end

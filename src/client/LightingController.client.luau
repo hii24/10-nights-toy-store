@@ -36,15 +36,16 @@ local function applyState()
 	end
 end
 
--- Флик-петля: пока не запитан — рандомно мигаем яркостью/ambient.
+-- Флик-петля: пока не запитан — МЯГКОЕ редкое затемнение (комфорт глаз, НЕ строб).
+-- Раньше был резкий строб (0↔50% яркости каждые 0.04–0.16с) → заменён на лёгкий dim, медленный, без чёрного.
 task.spawn(function()
 	while true do
 		if flickering then
-			local lit = math.random() < 0.45
-			Lighting.Brightness = if lit then baseBrightness * 0.5 else 0
-			Lighting.OutdoorAmbient = if lit then DARK_AMBIENT else Color3.fromRGB(4, 4, 6)
+			-- Лёгкое колебание яркости 82–100% базовой; ambient держим (не уходим в чёрный).
+			Lighting.Brightness = baseBrightness * (0.82 + math.random() * 0.18)
+			Lighting.OutdoorAmbient = DARK_AMBIENT
 			Lighting.Ambient = DARK_AMBIENT
-			task.wait(math.random(4, 16) / 100) -- 0.04–0.16с
+			task.wait(0.5 + math.random() * 0.6) -- 0.5–1.1с (не строб)
 		else
 			task.wait(0.2)
 		end

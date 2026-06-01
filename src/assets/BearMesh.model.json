@@ -1,0 +1,22 @@
+{
+	"className": "MeshPart",
+	"properties": {
+		"MeshId": "rbxassetid://118956652259780",
+		"Size": [3.06, 5.0, 2.05],
+		"Anchored": true,
+		"CanCollide": false,
+		"CastShadow": true
+	},
+	"children": [
+		{
+			"className": "SurfaceAppearance",
+			"name": "SurfaceAppearance",
+			"properties": {
+				"ColorMap": "rbxassetid://79130815137165",
+				"NormalMap": "rbxassetid://85704026115859",
+				"MetalnessMap": "rbxassetid://107743567568395",
+				"RoughnessMap": "rbxassetid://130398357961266"
+			}
+		}
+	]
+}
