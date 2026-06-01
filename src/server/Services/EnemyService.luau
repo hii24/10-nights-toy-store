@@ -9,6 +9,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local AssetService = game:GetService("AssetService")
 
 local Packages = ReplicatedStorage:WaitForChild("Packages")
 local Knit = require(Packages:WaitForChild("Knit"))
@@ -16,6 +17,7 @@ local Knit = require(Packages:WaitForChild("Knit"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = Shared:WaitForChild("Config")
 local EnemyConfig = require(Config:WaitForChild("EnemyConfig"))
+local BearConfig = require(Config:WaitForChild("BearConfig"))
 
 local BEAR_NAME = "Bear"
 local ATTR_POWERED = "GeneratorPowered"
@@ -93,6 +95,7 @@ function EnemyService:_step(dt: number)
 	if not bear or not bear.Parent then
 		return
 	end
+	local bearPos = bear:GetPivot().Position -- Bear теперь Model — позиция через pivot (root)
 
 	-- Ловля: игрок в catchRadius → колбэк (RoundService → Lost).
 	local caughtCb = self._caughtCallback
@@ -100,7 +103,7 @@ function EnemyService:_step(dt: number)
 		for _, plr in Players:GetPlayers() do
 			local hrp = plr.Character
 				and plr.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-			if hrp and (hrp.Position - bear.Position).Magnitude <= EnemyConfig.catchRadius then
+			if hrp and (hrp.Position - bearPos).Magnitude <= EnemyConfig.catchRadius then
 				caughtCb(plr)
 			end
 		end
@@ -112,7 +115,7 @@ function EnemyService:_step(dt: number)
 
 	local target = EnemyConfig.waypoints[self._wpIndex]
 	local goal = Vector3.new(target.X, self._bearY, target.Z)
-	local delta = goal - bear.Position
+	local delta = goal - bearPos
 	local dist = delta.Magnitude
 
 	if dist <= EnemyConfig.reachEpsilon then
@@ -121,25 +124,92 @@ function EnemyService:_step(dt: number)
 	end
 
 	local dir = delta.Unit
-	local newPos = bear.Position + dir * math.min(speed * dt, dist)
-	bear.CFrame = CFrame.lookAt(newPos, newPos + dir)
+	local newPos = bearPos + dir * math.min(speed * dt, dist)
+	bear:PivotTo(CFrame.lookAt(newPos, newPos + dir))
 end
 
 function EnemyService:_build()
 	local startWp = EnemyConfig.waypoints[1]
 	local bearY = EnemyConfig.bearSize.Y / 2
 
-	local bear = Instance.new("Part")
-	bear.Name = BEAR_NAME
-	bear.Size = EnemyConfig.bearSize
-	bear.Anchored = true
-	bear.Color = EnemyConfig.bearColor
-	bear.Material = EnemyConfig.bearMaterial
-	bear.CFrame = CFrame.new(startWp.X, bearY, startWp.Z)
+	-- Bear = Model: невидимый root (позиция/ловля, PrimaryPart) + визуал (реальный меш или фолбэк-кластер) (P2-03).
+	local model = Instance.new("Model")
+	model.Name = BEAR_NAME
 
-	self._bear = bear
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = EnemyConfig.bearSize
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide = false -- невидимый якорь позиции/ловли; коллизия НЕ нужна (ловля по радиусу, движение PivotTo)
+	root.CFrame = CFrame.new(startWp.X, bearY, startWp.Z)
+	root.Parent = model
+	model.PrimaryPart = root
+
+	self._bear = model
 	self._bearY = bearY
-	bear.Parent = Workspace
+	model.Parent = Workspace
+
+	-- Визуал — АСИНХРОННО (меш грузится по сети; НЕ блокируем и НЕ роняем KnitStart). Патруль идёт по root сразу;
+	-- меш «вплывает» когда загрузится. Любой сбой visual → фолбэк-кластер (внутри, под pcall), init не падает.
+	task.spawn(function()
+		self:_buildVisual(model, root)
+	end)
+end
+
+-- Визуал медведя: РЕАЛЬНЫЙ меш (MeshPart+SurfaceAppearance по asset ID из BearConfig.mesh, скейл к bearSize.Y),
+-- либо ФОЛБЭК part-кластер (BearConfig.parts), если меш не загрузился. Всё Anchored CanCollide=false (двигаем PivotTo).
+function EnemyService:_buildVisual(model: Model, root: BasePart)
+	-- Геометрию даёт AssetService:CreateMeshPartAsync (по meshId). PBR-текстуры писать из game-скрипта НЕЛЬЗЯ
+	-- (capability Plugin) — но можно КЛОНИРОВАТЬ готовый SurfaceAppearance из Rojo-шаблона Assets.BearMesh
+	-- (материализован в src/assets/BearMesh.model.json). Комбинируем геометрию + клон-текстуры → реальный медведь.
+	local meshCfg = BearConfig.mesh
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local template = assets and assets:FindFirstChild("BearMesh")
+	local saTemplate = template and template:FindFirstChildWhichIsA("SurfaceAppearance")
+	if meshCfg and saTemplate then
+		local ok, err = pcall(function()
+			local mp = AssetService:CreateMeshPartAsync(meshCfg.meshId, {
+				CollisionFidelity = Enum.CollisionFidelity.Box,
+				RenderFidelity = Enum.RenderFidelity.Precise,
+			})
+			local native = mp.Size
+			local scale = if native.Y > 0 then EnemyConfig.bearSize.Y / native.Y else 1
+			mp.Size = native * scale -- height → bearSize.Y, пропорции из импорта сохранены
+			mp.Name = "BearMesh"
+			mp.Anchored = true
+			mp.CanCollide = false
+			mp.CFrame = root.CFrame
+				* CFrame.Angles(0, meshCfg.faceYaw or 0, 0)
+				* CFrame.new(0, meshCfg.offsetY or 0, 0)
+			saTemplate:Clone().Parent = mp -- клон (НЕ write ColorMap) → PBR-текстуры (лицо/мех)
+			mp.Parent = model
+		end)
+		if ok then
+			return
+		end
+		warn(
+			"[EnemyService] Bear mesh build failed → фолбэк-кластер: "
+				.. tostring(err)
+		)
+	end
+	-- Фолбэк: part-кластер плейсхолдер (прежний PlushBear из BearConfig.parts).
+	local offY = BearConfig.originOffsetY or 0
+	for i, spec in BearConfig.parts do
+		local p = Instance.new("Part")
+		p.Name = "Bear_" .. i
+		p.Shape = (Enum.PartType :: any)[spec.shape] or Enum.PartType.Block
+		p.Size = spec.size
+		p.Color = spec.color
+		p.Material = (Enum.Material :: any)[spec.material] or Enum.Material.Fabric
+		p.Anchored = true
+		p.CanCollide = false
+		p.CastShadow = p.Material ~= Enum.Material.Neon
+		p.CFrame = root.CFrame
+			* CFrame.new(spec.pos + Vector3.new(0, offY, 0))
+			* CFrame.Angles(spec.rot.X, spec.rot.Y, spec.rot.Z)
+		p.Parent = model
+	end
 end
 
 -- Чистый предикат толчка (тестируемо): игрок в радиусе И прошёл кулдаун.

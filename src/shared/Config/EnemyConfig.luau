@@ -3,12 +3,15 @@
 -- Mr. Huggy Bear (Фаза 0) + Wind-Up Soldier (P1-02) + Doll Blinker (P1-03).
 
 local EnemyConfig = {
-	-- === Mr. Huggy Bear (P0-07/08): waypoint-петля внутри зала (пол y=0; стены ±24) ===
+	-- === Mr. Huggy Bear (P0-07/08): большая петля по магазину, ВПЛЕТАЯ проходы у генератора (угроза ядру).
+	-- Зал ±55; петля покрывает квадранты + дважды режет центр (плаза генератора), создавая динамичную угрозу.
 	waypoints = {
-		Vector3.new(16, 0, 16),
-		Vector3.new(-16, 0, 16),
-		Vector3.new(-16, 0, -16),
-		Vector3.new(16, 0, -16),
+		Vector3.new(38, 0, 38),
+		Vector3.new(0, 0, -6), -- проход у генератора
+		Vector3.new(-38, 0, 38),
+		Vector3.new(-38, 0, -38),
+		Vector3.new(0, 0, -6), -- ещё проход у генератора
+		Vector3.new(38, 0, -38),
 	},
 	bearSize = Vector3.new(4, 5, 3),
 	bearColor = Color3.fromRGB(120, 74, 56), -- отличимый «медвежий», не финальный арт
@@ -20,8 +23,8 @@ local EnemyConfig = {
 
 	-- === Wind-Up Soldier (P1-02): линейный патруль, толкает (НЕ летально), шумит ===
 	soldierFirstNight = 2, -- появляется со 2-й ночи (раньше — припаркован/неактивен)
-	soldierPathA = Vector3.new(0, 0, -16), -- линия патруля через центр зала (ось Z)
-	soldierPathB = Vector3.new(0, 0, 16),
+	soldierPathA = Vector3.new(0, 0, -40), -- длинный коридор-патруль через центр (ось Z, мимо генератора)
+	soldierPathB = Vector3.new(0, 0, 40),
 	soldierSize = Vector3.new(2, 4, 2), -- меньше медведя, отличимый силуэт
 	soldierColor = Color3.fromRGB(70, 110, 160), -- синеватый «жестяной», не медвежий
 	soldierMaterial = Enum.Material.Metal,
@@ -35,7 +38,7 @@ local EnemyConfig = {
 
 	-- === Doll Blinker (P1-03): крадётся в «слепые» тики, замирает под взглядом; безвредна ===
 	dollFirstNight = 3, -- появляется с 3-й ночи (раньше — припаркована/неактивна)
-	dollStart = Vector3.new(18, 0, -18), -- стартовый угол зала
+	dollStart = Vector3.new(44, 0, -44), -- дальний угол (напротив подсобки)
 	dollSize = Vector3.new(2, 3.5, 2), -- «кукольный» силуэт
 	dollColor = Color3.fromRGB(225, 215, 205), -- бледный «фарфор», отличимый от медведя/солдата
 	dollMaterial = Enum.Material.SmoothPlastic,

@@ -2,7 +2,7 @@
 -- ReviveConfig — данные toy box / revive Фазы 1 (P1-05, graybox). Только значения, без логики.
 
 local ReviveConfig = {
-	toyBoxPosition = Vector3.new(-20, 0, 20), -- угол зала, в стороне от генератора/куклы/дверей
+	toyBoxPosition = Vector3.new(-44, 0, -44), -- дальний угол: ПОДСОБКА («склад пойманных»), путешествие за спасением
 	toyBoxSize = Vector3.new(6, 6, 6),
 	color = Color3.fromRGB(200, 120, 40), -- «ящик-игрушка», отличимый
 	material = Enum.Material.WoodPlanks,
