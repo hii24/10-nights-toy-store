@@ -16,8 +16,8 @@ local EnemyConfig = {
 	bearSize = Vector3.new(4, 5, 3),
 	bearColor = Color3.fromRGB(120, 74, 56), -- отличимый «медвежий», не финальный арт
 	bearMaterial = Enum.Material.SmoothPlastic,
-	speedPowered = 9, -- медленнее на свету
-	speedDark = 16, -- быстрее в темноте
+	speedPowered = 6, -- медленнее на свету (грузный лумбер, не быстрый слайдер)
+	speedDark = 10, -- быстрее в темноте, но всё ещё медленный «надвигающийся» темп
 	reachEpsilon = 2, -- дистанция «нода достигнута»
 	catchRadius = 5, -- ловит игрока в этом радиусе (P0-08)
 

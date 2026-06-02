@@ -44,5 +44,41 @@ return function()
 				expect(string.find(m[key], "rbxassetid://") ~= nil).to.equal(true)
 			end
 		end)
+
+		it(
+			"anim-блок есть и параметры разумны (слумп/походка/дыхание > 0)",
+			function()
+				local a = BearConfig.mesh.anim
+				expect(a).to.be.ok()
+				-- слумп днём: завал + просадка заданы
+				expect(a.slumpPitch > 0 and a.slumpRoll > 0 and a.slumpDrop > 0).to.equal(true)
+				-- пробуждение и походка/дыхание положительны
+				expect(a.wakeSpeed > 0).to.equal(true)
+				expect(a.bobAmplitude > 0 and a.bobPerStud > 0).to.equal(true)
+				expect(a.idleBobAmplitude > 0 and a.idleBobSpeed > 0).to.equal(true)
+			end
+		)
+	end)
+
+	describe("BearConfig.rig (два рига: добрый/злой день-ночь)", function()
+		it("good + evil имеют modelId и animId (строки rbxassetid)", function()
+			local r = BearConfig.rig
+			expect(r).to.be.ok()
+			for _, form in { "good", "evil" } do
+				local f = r[form]
+				expect(f).to.be.ok()
+				for _, key in { "modelId", "animId" } do
+					expect(typeof(f[key])).to.equal("string")
+					expect(string.find(f[key], "rbxassetid://") ~= nil).to.equal(true)
+				end
+			end
+		end)
+
+		it("параметры рига разумны (высота/сидя/poof)", function()
+			local r = BearConfig.rig
+			expect(r.heightStuds > 0).to.equal(true)
+			expect(r.sitDrop >= 0).to.equal(true)
+			expect(r.poof.count > 0 and r.poof.lifetime > 0).to.equal(true)
+		end)
 	end)
 end
