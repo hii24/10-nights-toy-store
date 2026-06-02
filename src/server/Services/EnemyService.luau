@@ -44,7 +44,11 @@ local EnemyService = Knit.CreateService({
 -- Серверное состояние (Service имеет [any]: any — поля чисты под --!strict).
 EnemyService._active = false
 EnemyService._wpIndex = 1
--- _bear / _bearY задаются в _build().
+EnemyService._wakeT = 0 -- 0=слумп(день/неактивен) … 1=бодрствует(ночь/активен); плавный lerp в _animateBear
+EnemyService._walkPhase = 0 -- фаза синуса походки (растёт по пройденному пути)
+EnemyService._idlePhase = 0 -- фаза дыхания стоя
+EnemyService._lastMoveStep = 0 -- путь медведя в этом тике (бленд ходьба/idle)
+-- _bear / _bearY / _bearMesh задаются в _build()/_buildVisual().
 
 EnemyService._soldierActive = false
 EnemyService._lastPush = {} -- [Player] = os.clock() последнего толчка (rate-limit)
@@ -119,13 +123,66 @@ function EnemyService:_step(dt: number)
 	local dist = delta.Magnitude
 
 	if dist <= EnemyConfig.reachEpsilon then
+		self._lastMoveStep = 0
 		self:_setWaypoint((self._wpIndex % #EnemyConfig.waypoints) + 1)
 		return
 	end
 
 	local dir = delta.Unit
-	local newPos = bearPos + dir * math.min(speed * dt, dist)
+	local moveStep = math.min(speed * dt, dist)
+	self._lastMoveStep = moveStep -- для _animateBear (бленд ходьба/idle)
+	local newPos = bearPos + dir * moveStep
 	bear:PivotTo(CFrame.lookAt(newPos, newPos + dir))
+end
+
+-- Процедурная анимация медведя (P2-03, без скелетных клипов): блендит СЛУМП (день/неактивен — «осел вразвалку»)
+-- ↔ СТОЙКА+ПОХОДКА (ночь/активен) по wakefulness. В движении — walk-bob/крен/наклон (агрессивнее в темноте),
+-- стоя — дыхание. ЧИСТО ВИЗУАЛ: позиция/ловля идут по root (этот метод трогает только меш-визуал). Тикает всегда.
+function EnemyService:_animateBear(dt: number)
+	local bear = self._bear
+	local mesh = self._bearMesh
+	local cfg = BearConfig.mesh
+	local anim = cfg and cfg.anim
+	local root = bear and bear.PrimaryPart
+	if not (mesh and mesh.Parent and anim and root) then
+		return -- фолбэк-кластер (без меша) или ещё не загрузился — анимации нет
+	end
+
+	-- Пробуждение/засыпание: цель = active? 1 : 0, плавный lerp.
+	local target = if self._active then 1 else 0
+	local w = (self._wakeT or 0)
+	w += (target - w) * math.clamp(anim.wakeSpeed * dt, 0, 1)
+	self._wakeT = w
+
+	-- Движение этого тика (consume; не активен → 0).
+	local move = if self._active then (self._lastMoveStep or 0) else 0
+	self._lastMoveStep = 0
+
+	-- Поза бодрствования (w=1): ходьба или дыхание.
+	local awakeBobY, awakePitch, awakeRoll
+	if move > 0.01 then
+		self._walkPhase = (self._walkPhase or 0) + move * anim.bobPerStud
+		awakeBobY = math.sin(self._walkPhase) * anim.bobAmplitude
+		awakeRoll = math.sin(self._walkPhase * 0.5) * anim.swayAngle
+		local powered = Workspace:GetAttribute(ATTR_POWERED) == true
+		local speed = if powered then EnemyConfig.speedPowered else EnemyConfig.speedDark
+		local speedK = math.clamp(speed / EnemyConfig.speedDark, 0, 1)
+		awakePitch = anim.leanBase + anim.leanSpeedBoost * speedK
+	else
+		self._idlePhase = (self._idlePhase or 0) + dt * anim.idleBobSpeed
+		awakeBobY = math.sin(self._idlePhase) * anim.idleBobAmplitude
+		awakePitch = 0
+		awakeRoll = 0
+	end
+
+	-- Блендим слумп (1-w) ↔ бодрствование (w).
+	local iw = 1 - w
+	local pitch = anim.slumpPitch * iw + awakePitch * w
+	local roll = anim.slumpRoll * iw + awakeRoll * w
+	local yaw = (cfg.faceYaw or 0) + anim.slumpYaw * iw
+	local offsetY = (cfg.offsetY or 0) - anim.slumpDrop * iw + awakeBobY * w
+
+	mesh.CFrame = root.CFrame * CFrame.new(0, offsetY, 0) * CFrame.Angles(pitch, yaw, roll)
 end
 
 function EnemyService:_build()
@@ -184,6 +241,7 @@ function EnemyService:_buildVisual(model: Model, root: BasePart)
 				* CFrame.new(0, meshCfg.offsetY or 0, 0)
 			saTemplate:Clone().Parent = mp -- клон (НЕ write ColorMap) → PBR-текстуры (лицо/мех)
 			mp.Parent = model
+			self._bearMesh = mp -- ссылка для процедурной анимации (_animateBear)
 		end)
 		if ok then
 			return
@@ -453,6 +511,7 @@ function EnemyService:KnitStart()
 
 	RunService.Heartbeat:Connect(function(dt: number)
 		self:_step(dt)
+		self:_animateBear(dt) -- визуал-анимация всегда (слумп днём / походка ночью), независимо от _active
 		self:_stepSoldier(dt)
 		self:_stepDoll(dt)
 	end)
